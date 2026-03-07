@@ -1,26 +1,117 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tw-animate-css";
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --font-body: var(--font-outfit);
+  --font-display: var(--font-nunito);
+  --radius: 1.35rem;
+  --background: oklch(0.983 0.016 95.8);
+  --foreground: oklch(0.31 0.031 152.4);
+  --card: oklch(1 0.01 95.1 / 0.9);
+  --card-foreground: oklch(0.28 0.028 152.3);
+  --popover: oklch(0.998 0.004 95.4);
+  --popover-foreground: oklch(0.28 0.028 152.3);
+  --primary: oklch(0.56 0.078 151.2);
+  --primary-foreground: oklch(0.99 0.005 95.2);
+  --secondary: oklch(0.93 0.025 111.8);
+  --secondary-foreground: oklch(0.32 0.03 152.8);
+  --muted: oklch(0.95 0.012 96.2);
+  --muted-foreground: oklch(0.49 0.021 152.2);
+  --accent: oklch(0.74 0.156 37.1);
+  --accent-foreground: oklch(0.22 0.03 31.5);
+  --border: oklch(0.88 0.015 110.8);
+  --input: oklch(0.99 0.004 95.2);
+  --ring: oklch(0.56 0.078 151.2 / 0.34);
+  --destructive: oklch(0.61 0.196 24.2);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(152, 188, 156, 0.24), transparent 28%),
+      radial-gradient(circle at 85% 10%, rgba(239, 140, 122, 0.18), transparent 24%),
+      linear-gradient(180deg, rgba(252, 249, 240, 0.96), rgba(249, 244, 233, 1));
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .card-soft {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 252, 246, 0.84));
+    box-shadow: 0 24px 64px rgba(65, 76, 58, 0.08);
+    backdrop-filter: blur(14px);
+  }
+
+  .hero-wash {
+    background:
+      radial-gradient(circle at top, rgba(152, 188, 156, 0.3), transparent 32%),
+      radial-gradient(circle at 85% 0%, rgba(239, 140, 122, 0.22), transparent 26%),
+      rgba(255, 252, 246, 0.75);
+  }
+
+  .grid-fade {
+    background-image:
+      linear-gradient(rgba(121, 146, 123, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(121, 146, 123, 0.08) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .touch-safe {
+    min-height: 48px;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 }

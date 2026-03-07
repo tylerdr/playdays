@@ -1,0 +1,508 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Sparkles, Trash2 } from "lucide-react";
+import { createEmptyProfile, familyProfileSchema, MATERIAL_OPTIONS, type FamilyProfile } from "@/lib/schemas";
+import { getProfile, saveProfile } from "@/lib/storage";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+
+const steps = ["Basics", "Kids", "Rhythm", "Materials"];
+
+function buildInitialProfile() {
+  const existing = getProfile();
+  return existing ?? createEmptyProfile();
+}
+
+export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [profile, setProfile] = useState<FamilyProfile>(buildInitialProfile);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const title = mode === "onboard" ? "Set up your family once" : "Update your family settings";
+  const description =
+    mode === "onboard"
+      ? "PlayDays uses this to shape weather-smart suggestions, local picks, and chat context."
+      : "Tighten the profile and the daily plan gets better fast.";
+
+  const progress = useMemo(() => ((step + 1) / steps.length) * 100, [step]);
+
+  function updateProfile(patch: Partial<FamilyProfile>) {
+    setProfile((current) => ({ ...current, ...patch }));
+  }
+
+  function updateKid(index: number, patch: Partial<FamilyProfile["kids"][number]>) {
+    setProfile((current) => ({
+      ...current,
+      kids: current.kids.map((kid, kidIndex) => (kidIndex === index ? { ...kid, ...patch } : kid)),
+    }));
+  }
+
+  function addKid() {
+    setProfile((current) => ({
+      ...current,
+      kids: [
+        ...current.kids,
+        {
+          id: crypto.randomUUID(),
+          name: "",
+          age: 2,
+          interests: [],
+        },
+      ],
+    }));
+  }
+
+  function removeKid(index: number) {
+    setProfile((current) => ({
+      ...current,
+      kids: current.kids.filter((_, kidIndex) => kidIndex !== index),
+    }));
+  }
+
+  function toggleMaterial(material: string, checked: boolean) {
+    const next = checked
+      ? [...profile.materials, material]
+      : profile.materials.filter((item) => item !== material);
+    updateProfile({ materials: Array.from(new Set(next)) });
+  }
+
+  function save(modeAfterSave: "today" | "stay") {
+    try {
+      const parsed = familyProfileSchema.parse({
+        ...profile,
+        location: {
+          ...profile.location,
+          label:
+            profile.location.label ||
+            [profile.location.city, profile.location.zip].filter(Boolean).join(", "),
+        },
+      });
+      saveProfile(parsed);
+      setProfile(parsed);
+      setError(null);
+      setStatus(mode === "onboard" ? "Profile saved. Building your day next." : "Settings saved.");
+      if (modeAfterSave === "today") {
+        router.push("/today");
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to save profile.");
+    }
+  }
+
+  const canAdvance =
+    step === 0
+      ? Boolean(profile.parentName && (profile.location.city || profile.location.zip))
+      : step === 1
+        ? profile.kids.every((kid) => kid.name.trim().length > 0)
+        : true;
+
+  return (
+    <div className="page-shell py-10 sm:py-14">
+      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card className="card-soft border-border/60 lg:sticky lg:top-24 lg:h-fit">
+          <CardHeader>
+            <Badge variant="outline" className="w-fit rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-primary">
+              {mode === "onboard" ? "First-time setup" : "Family profile"}
+            </Badge>
+            <CardTitle className="text-4xl text-balance">{title}</CardTitle>
+            <CardDescription className="text-base leading-7">{description}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{steps[step]}</span>
+                <span>{step + 1} / {steps.length}</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+            <div className="grid gap-2">
+              {steps.map((item, index) => (
+                <Button
+                  key={item}
+                  type="button"
+                  variant={index === step ? "default" : "ghost"}
+                  className="touch-safe justify-start rounded-2xl px-4"
+                  onClick={() => setStep(index)}
+                >
+                  {item}
+                </Button>
+              ))}
+            </div>
+            <div className="rounded-[1.25rem] border border-border/60 bg-white/70 p-4 text-sm leading-7 text-muted-foreground">
+              <p className="font-medium text-foreground">What this tunes</p>
+              <p>
+                Weather fit, activity difficulty, one-handed options, local outing picks, and the tone of the AI chat.
+              </p>
+            </div>
+            {mode === "onboard" ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="touch-safe w-full rounded-2xl"
+                onClick={() => {
+                  const demo = familyProfileSchema.parse({
+                    parentName: "Maya",
+                    email: "maya@example.com",
+                    location: { city: "Newport Beach", zip: "92660", label: "Newport Beach, CA" },
+                    kids: [
+                      { id: crypto.randomUUID(), name: "Nora", age: 4, interests: ["dinosaurs", "music"] },
+                      { id: crypto.randomUUID(), name: "Leo", age: 2, interests: ["trucks", "animals"] },
+                    ],
+                    schedule: { schoolHours: "No school today", napWindow: "1-3pm", freeTimeWindows: "9-11am, 3:30-5pm" },
+                    preferences: { indoorOutdoorPreference: "balanced", messTolerance: 3, energyLevelToday: 4, digestEnabled: true },
+                    materials: ["Craft supplies", "Bubbles", "Books", "Play-doh"],
+                    notes: "A sleeping baby often changes the afternoon plan.",
+                  });
+                  setProfile(demo);
+                  setStatus("Demo family loaded.");
+                  setError(null);
+                }}
+              >
+                <Sparkles className="mr-2 size-4" />
+                Load demo family
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="card-soft border-border/60">
+          <CardContent className="space-y-8 pt-6">
+            {step === 0 ? (
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="parentName">Parent name</Label>
+                  <Input
+                    id="parentName"
+                    value={profile.parentName}
+                    onChange={(event) => updateProfile({ parentName: event.target.value })}
+                    placeholder="Alyssa"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email for daily digest</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profile.email ?? ""}
+                    onChange={(event) => updateProfile({ email: event.target.value })}
+                    placeholder="you@example.com"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={profile.location.city}
+                    onChange={(event) => updateProfile({ location: { ...profile.location, city: event.target.value } })}
+                    placeholder="Newport Beach"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zip">Zip code</Label>
+                  <Input
+                    id="zip"
+                    value={profile.location.zip}
+                    onChange={(event) => updateProfile({ location: { ...profile.location, zip: event.target.value } })}
+                    placeholder="92660"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="label">Location label</Label>
+                  <Input
+                    id="label"
+                    value={profile.location.label}
+                    onChange={(event) => updateProfile({ location: { ...profile.location, label: event.target.value } })}
+                    placeholder="Newport Beach, CA"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {step === 1 ? (
+              <div className="space-y-4">
+                {profile.kids.map((kid, index) => (
+                  <Card key={kid.id} className="border-border/60 bg-white/70">
+                    <CardHeader className="pb-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-2xl">Kid {index + 1}</CardTitle>
+                          <CardDescription>PlayDays uses interests and age to tune ideas.</CardDescription>
+                        </div>
+                        {profile.kids.length > 1 ? (
+                          <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => removeKid(index)}>
+                            <Trash2 className="size-4" />
+                            <span className="sr-only">Remove kid</span>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 pt-6 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`kid-name-${kid.id}`}>Name</Label>
+                        <Input
+                          id={`kid-name-${kid.id}`}
+                          value={kid.name}
+                          onChange={(event) => updateKid(index, { name: event.target.value })}
+                          placeholder="Nora"
+                          className="touch-safe rounded-2xl"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`kid-age-${kid.id}`}>Age</Label>
+                        <Input
+                          id={`kid-age-${kid.id}`}
+                          type="number"
+                          min={0}
+                          max={12}
+                          value={kid.age}
+                          onChange={(event) => updateKid(index, { age: Number(event.target.value) || 0 })}
+                          className="touch-safe rounded-2xl"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor={`kid-interests-${kid.id}`}>Interests</Label>
+                        <Input
+                          id={`kid-interests-${kid.id}`}
+                          value={kid.interests.join(", ")}
+                          onChange={(event) =>
+                            updateKid(index, {
+                              interests: event.target.value
+                                .split(",")
+                                .map((item) => item.trim())
+                                .filter(Boolean),
+                            })
+                          }
+                          placeholder="dinosaurs, trucks, painting"
+                          className="touch-safe rounded-2xl"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                <Button type="button" variant="outline" className="touch-safe rounded-2xl" onClick={addKid}>
+                  <Plus className="mr-2 size-4" />
+                  Add another child
+                </Button>
+              </div>
+            ) : null}
+
+            {step === 2 ? (
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="schoolHours">School hours</Label>
+                  <Input
+                    id="schoolHours"
+                    value={profile.schedule.schoolHours}
+                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, schoolHours: event.target.value } })}
+                    placeholder="Mon/Wed preschool 9am-12pm"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="napWindow">Typical nap window</Label>
+                  <Input
+                    id="napWindow"
+                    value={profile.schedule.napWindow}
+                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, napWindow: event.target.value } })}
+                    placeholder="1-3pm"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="freeTimeWindows">Best free windows</Label>
+                  <Input
+                    id="freeTimeWindows"
+                    value={profile.schedule.freeTimeWindows}
+                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, freeTimeWindows: event.target.value } })}
+                    placeholder="9-11am, 3:30-5pm"
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Indoor or outdoor bias</Label>
+                  <Select
+                    value={profile.preferences.indoorOutdoorPreference}
+                    onValueChange={(value) =>
+                      updateProfile({
+                        preferences: {
+                          ...profile.preferences,
+                          indoorOutdoorPreference: value as FamilyProfile["preferences"]["indoorOutdoorPreference"],
+                        },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="touch-safe w-full rounded-2xl">
+                      <SelectValue placeholder="Choose a bias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mostly-indoor">Mostly indoor</SelectItem>
+                      <SelectItem value="balanced">Balanced</SelectItem>
+                      <SelectItem value="mostly-outdoor">Mostly outdoor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Mess tolerance</Label>
+                    <Badge variant="outline" className="rounded-full">{profile.preferences.messTolerance}/5</Badge>
+                  </div>
+                  <Slider
+                    value={[profile.preferences.messTolerance]}
+                    min={1}
+                    max={5}
+                    step={1}
+                    onValueChange={(value) =>
+                      updateProfile({
+                        preferences: {
+                          ...profile.preferences,
+                          messTolerance: value[0] ?? 3,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-3 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Energy level today</Label>
+                    <Badge variant="outline" className="rounded-full">{profile.preferences.energyLevelToday}/5</Badge>
+                  </div>
+                  <Slider
+                    value={[profile.preferences.energyLevelToday]}
+                    min={1}
+                    max={5}
+                    step={1}
+                    onValueChange={(value) =>
+                      updateProfile({
+                        preferences: {
+                          ...profile.preferences,
+                          energyLevelToday: value[0] ?? 3,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-3 md:col-span-2">
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-white/70 px-4 py-3">
+                    <div>
+                      <Label htmlFor="digestEnabled">Daily 7am digest</Label>
+                      <p className="text-sm text-muted-foreground">Send the five-card plan and local picks by email.</p>
+                    </div>
+                    <Switch
+                      id="digestEnabled"
+                      checked={profile.preferences.digestEnabled}
+                      onCheckedChange={(checked) =>
+                        updateProfile({
+                          preferences: {
+                            ...profile.preferences,
+                            digestEnabled: checked,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {step === 3 ? (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Materials at home</Label>
+                    <Badge variant="outline" className="rounded-full">{profile.materials.length} selected</Badge>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {MATERIAL_OPTIONS.map((material) => {
+                      const checked = profile.materials.includes(material);
+                      return (
+                        <label
+                          key={material}
+                          className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/70 px-4 py-3 text-sm text-foreground"
+                        >
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleMaterial(material, value === true)} />
+                          <span>{material}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Anything PlayDays should know?</Label>
+                  <Textarea
+                    id="notes"
+                    value={profile.notes}
+                    onChange={(event) => updateProfile({ notes: event.target.value })}
+                    rows={5}
+                    placeholder="Examples: one child gets overstimulated fast, mornings are best, baby often sleeps in the carrier."
+                    className="rounded-3xl"
+                  />
+                </div>
+                <div className="rounded-[1.5rem] border border-border/60 bg-white/70 p-5 text-sm leading-7 text-muted-foreground">
+                  <p className="font-medium text-foreground">Ready for the first real run</p>
+                  <p>
+                    PlayDays will use this setup for today&apos;s cards, local discovery, nap-trap mode, and the AI chat context.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {status ? <p className="text-sm text-primary">{status}</p> : null}
+
+            <div className="flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                className="touch-safe rounded-2xl"
+                disabled={step === 0}
+                onClick={() => setStep((current) => Math.max(0, current - 1))}
+              >
+                Back
+              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {step < steps.length - 1 ? (
+                  <Button
+                    type="button"
+                    className="touch-safe rounded-2xl px-6"
+                    disabled={!canAdvance}
+                    onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button type="button" className="touch-safe rounded-2xl px-6" onClick={() => save(mode === "onboard" ? "today" : "stay")}>
+                    {mode === "onboard" ? "Save and build today" : "Save settings"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
