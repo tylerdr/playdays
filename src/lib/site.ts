@@ -8,7 +8,7 @@ export const siteConfig = {
 };
 
 export const marketingNav = [
-  { href: "/onboard", label: "Start setup" },
+  { href: "/start-setup", label: "Start setup" },
   { href: "/today", label: "Today" },
   { href: "/discover", label: "Discover" },
   { href: "/chat", label: "Chat" },

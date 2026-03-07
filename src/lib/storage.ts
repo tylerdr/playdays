@@ -50,6 +50,7 @@ export function getProfile() {
 export function saveProfile(profile: FamilyProfile) {
   if (isBrowser()) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    localStorage.removeItem(PLAN_KEY);
   }
 }
 
@@ -157,9 +158,16 @@ export function savePinnedPlace(place: LocalPlace) {
 }
 
 export function replaceActivityInPlan(plan: DailyPlan, activity: ActivityCard) {
+  const activities = plan.activities.map((existing) => (existing.slot === activity.slot ? activity : existing));
   const nextPlan: DailyPlan = {
     ...plan,
-    activities: plan.activities.map((existing) => (existing.slot === activity.slot ? activity : existing)),
+    activities,
+    timeline: (plan.timeline ?? []).map((block) => ({
+      ...block,
+      activityNames: block.activitySlots
+        .map((slot) => activities.find((item) => item.slot === slot)?.name)
+        .filter((value): value is string => Boolean(value)),
+    })),
   };
 
   saveCachedPlan(nextPlan);

@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, LoaderCircle, Mail, MapPin, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarDays, Clock3, LoaderCircle, Mail, MapPin, RefreshCw, Sparkles } from "lucide-react";
 import { createDemoProfile, type ActivityCard as ActivityCardType, type DailyPlan, type FamilyProfile } from "@/lib/schemas";
 import {
-  ensureProfile,
   getCachedPlan,
   getHistory,
   getPinnedPlace,
+  getProfile,
   recordActivityAction,
   replaceActivityInPlan,
   saveCachedPlan,
@@ -52,7 +52,7 @@ export function TodayBoard() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const existingProfile = ensureProfile();
+    const existingProfile = getProfile();
     setProfile(existingProfile);
     const cachedPlan = getCachedPlan();
     if (cachedPlan) {
@@ -163,7 +163,7 @@ export function TodayBoard() {
             <p className="text-muted-foreground">PlayDays needs your kids, location, and preferences before it can build a real day.</p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild className="touch-safe rounded-2xl px-6">
-                <Link href="/onboard">Start onboarding</Link>
+                <Link href="/start-setup">Start setup</Link>
               </Button>
               <Button variant="outline" className="touch-safe rounded-2xl" onClick={loadDemoFamily}>
                 <Sparkles className="mr-2 size-4" />
@@ -231,6 +231,42 @@ export function TodayBoard() {
 
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
       {message ? <p className="mt-4 text-sm text-primary">{message}</p> : null}
+
+      {plan?.timeline.length ? (
+        <section className="mt-8">
+          <Card className="card-soft border-border/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Clock3 className="size-5 text-primary" />
+                Today&apos;s rhythm
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 lg:grid-cols-3">
+              {plan.timeline.map((block) => (
+                <div key={block.id} className="rounded-[1.4rem] border border-border/60 bg-white/80 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{block.label}</p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">{block.timeRange}</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full">
+                      {block.activityNames.length} picks
+                    </Badge>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">{block.summary}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {block.activityNames.map((name) => (
+                      <Badge key={name} className="rounded-full bg-secondary text-secondary-foreground">
+                        {name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       {pinnedPlace ? (
         <Card className="card-soft mt-6 border-border/60">

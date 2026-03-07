@@ -3,6 +3,7 @@ export {
   activityCardSchema,
   createDemoProfile,
   napTrapSuggestionSchema,
+  type ScheduleBlock,
   type ActivityCard,
   type ActivitySlot,
   type DailyPlan,

@@ -1,19 +1,7 @@
-# PlayDays Build Plan
+## PlayDays fix plan
 
-## Goal
-Ship a polished, mobile-first daily planning app for parents that combines AI-generated activities, live weather context, local discovery, chat help, and daily email delivery.
-
-## Approach
-1. Use a clean Next.js app-router scaffold with Tailwind v4 and shadcn-style components.
-2. Store onboarding data locally first so the product works before auth is finished.
-3. Add real OpenAI, Open-Meteo, Google Places, and Resend integrations behind stable API routes.
-4. Keep Supabase-ready schema and helpers in the repo so auth/history can move server-side without rework.
-5. Validate with lint + build, then wire GitHub and Vercel.
-
-## MVP Definition
-- Working onboarding flow
-- Working /today generation with weather-aware cards
-- Working /discover with Google Places or AI fallback
-- Working /chat with personalized prompt
-- Working daily digest endpoint + cron scaffold
-- Installable PWA manifest and mobile nav
+1. Replace brittle location resolution with Open-Meteo geocoding that prefers city-only lookups and works without an API key.
+2. Make local discovery use Google Places only when configured, otherwise fall back directly to AI-generated city suggestions.
+3. Extend onboarding/profile data with simple day rhythm fields and expose schedule-aware timeline blocks on `/today`.
+4. Add a `/start-setup` route alias and verify profile data persists through local storage.
+5. Validate with `npm run build`, then commit and push.

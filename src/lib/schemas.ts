@@ -24,6 +24,12 @@ export const scheduleSchema = z.object({
   schoolHours: z.string().default(""),
   napWindow: z.string().default(""),
   freeTimeWindows: z.string().default(""),
+  wakeTime: z.string().default("07:00"),
+  nap1Start: z.string().default("12:30"),
+  nap1End: z.string().default("14:30"),
+  nap2Start: z.string().default(""),
+  nap2End: z.string().default(""),
+  bedtime: z.string().default("19:30"),
 });
 
 export const familyPreferencesSchema = z.object({
@@ -86,6 +92,16 @@ export const napTrapSuggestionSchema = z.object({
 });
 export type NapTrapSuggestion = z.infer<typeof napTrapSuggestionSchema>;
 
+export const scheduleBlockSchema = z.object({
+  id: z.enum(["morning", "midday", "afternoon"]),
+  label: z.string(),
+  timeRange: z.string(),
+  summary: z.string(),
+  activitySlots: z.array(activitySlotSchema).default([]),
+  activityNames: z.array(z.string()).default([]),
+});
+export type ScheduleBlock = z.infer<typeof scheduleBlockSchema>;
+
 export const weatherSummarySchema = z.object({
   locationLabel: z.string(),
   summary: z.string(),
@@ -103,6 +119,7 @@ export const dailyPlanSchema = z.object({
   encouragement: z.string(),
   weather: weatherSummarySchema,
   activities: z.array(activityCardSchema).length(5),
+  timeline: z.array(scheduleBlockSchema).default([]),
   discovery: z.array(localPlaceSchema).default([]),
   napTrap: z.array(napTrapSuggestionSchema).min(3).max(5),
 });
@@ -181,6 +198,12 @@ export function createEmptyProfile(): FamilyProfile {
       schoolHours: "",
       napWindow: "12:30-2:30pm",
       freeTimeWindows: "9-11am, 3-5pm",
+      wakeTime: "07:00",
+      nap1Start: "12:30",
+      nap1End: "14:30",
+      nap2Start: "",
+      nap2End: "",
+      bedtime: "19:30",
     },
     preferences: {
       indoorOutdoorPreference: "balanced",
@@ -220,6 +243,12 @@ export function createDemoProfile(): FamilyProfile {
       schoolHours: "No school today",
       napWindow: "1-3pm",
       freeTimeWindows: "9-11am, 3:30-5pm",
+      wakeTime: "07:00",
+      nap1Start: "13:00",
+      nap1End: "15:00",
+      nap2Start: "",
+      nap2End: "",
+      bedtime: "19:30",
     },
     preferences: {
       indoorOutdoorPreference: "balanced",

@@ -6,6 +6,7 @@ import {
   activityCardSchema,
   createDemoProfile,
   napTrapSuggestionSchema,
+  type ScheduleBlock,
   slotMeta,
   type ActivityCard,
   type ActivitySlot,
@@ -52,6 +53,161 @@ function materialsForSlot(profile: FamilyProfile, slot: ActivitySlot) {
     materials.push("Craft supplies");
   }
   return materials.slice(0, 4);
+}
+
+function parseTimeValue(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  if (!match) {
+    return null;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] ?? "0");
+  const meridiem = match[3];
+
+  if (meridiem === "pm" && hours < 12) {
+    hours += 12;
+  }
+
+  if (meridiem === "am" && hours === 12) {
+    hours = 0;
+  }
+
+  if (!meridiem && hours > 23) {
+    return null;
+  }
+
+  return (hours * 60) + minutes;
+}
+
+function parseTimeRange(value?: string) {
+  if (!value) {
+    return [null, null] as const;
+  }
+
+  const [start, end] = value
+    .split(/-|–|to/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return [parseTimeValue(start), parseTimeValue(end)] as const;
+}
+
+function formatClock(minutes: number) {
+  const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const twelveHour = hours % 12 || 12;
+  return `${twelveHour}:${mins.toString().padStart(2, "0")} ${suffix}`;
+}
+
+function formatRange(start: number, end: number) {
+  return `${formatClock(start)} - ${formatClock(end)}`;
+}
+
+function getScheduleTimes(profile: FamilyProfile) {
+  const [legacyNapStart, legacyNapEnd] = parseTimeRange(profile.schedule.napWindow);
+  const wake = parseTimeValue(profile.schedule.wakeTime) ?? (7 * 60);
+  const nap1Start = parseTimeValue(profile.schedule.nap1Start) ?? legacyNapStart ?? (12 * 60) + 30;
+  const nap1End = parseTimeValue(profile.schedule.nap1End) ?? legacyNapEnd ?? (nap1Start + 120);
+  const bed = parseTimeValue(profile.schedule.bedtime) ?? (19 * 60) + 30;
+
+  const explicitNap2Start = parseTimeValue(profile.schedule.nap2Start);
+  const explicitNap2End = parseTimeValue(profile.schedule.nap2End);
+  const fallbackNap2Start = Math.min(Math.max(nap1End + 120, (15 * 60) + 30), Math.max(wake + 240, bed - 120));
+  const nap2Start = explicitNap2Start ?? fallbackNap2Start;
+  const nap2End = explicitNap2End ?? Math.min(nap2Start + 45, bed - 45);
+  const hasSecondNap = Boolean(profile.schedule.nap2Start || profile.schedule.nap2End);
+  const normalizedNap1Start = Math.max(wake + 60, nap1Start);
+  const normalizedNap1End = Math.max(normalizedNap1Start + 30, nap1End);
+  const normalizedNap2Start = Math.max(normalizedNap1End + 30, nap2Start);
+  const normalizedNap2End = Math.max(normalizedNap2Start + 30, nap2End);
+  const normalizedBed = Math.max(normalizedNap2End + 30, bed);
+
+  return {
+    wake,
+    nap1Start: normalizedNap1Start,
+    nap1End: normalizedNap1End,
+    nap2Start: normalizedNap2Start,
+    nap2End: normalizedNap2End,
+    bed: normalizedBed,
+    hasSecondNap,
+  };
+}
+
+function buildScheduleSummary(profile: FamilyProfile) {
+  const times = getScheduleTimes(profile);
+  const pieces = [
+    `wake ${formatClock(times.wake)}`,
+    `nap 1 ${formatRange(times.nap1Start, times.nap1End)}`,
+    times.hasSecondNap ? `nap 2 ${formatRange(times.nap2Start, times.nap2End)}` : `quiet reset ${formatRange(times.nap2Start, times.nap2End)}`,
+    `bedtime ${formatClock(times.bed)}`,
+  ];
+
+  if (profile.schedule.schoolHours) {
+    pieces.push(`school ${profile.schedule.schoolHours}`);
+  }
+
+  if (profile.schedule.freeTimeWindows) {
+    pieces.push(`free windows ${profile.schedule.freeTimeWindows}`);
+  }
+
+  if (profile.schedule.napWindow) {
+    pieces.push(`nap notes ${profile.schedule.napWindow}`);
+  }
+
+  return pieces.join("; ");
+}
+
+function buildTimeline(profile: FamilyProfile, activities: ActivityCard[]): ScheduleBlock[] {
+  const times = getScheduleTimes(profile);
+  const blocks = [
+    {
+      id: "morning" as const,
+      label: "Morning block",
+      start: times.wake,
+      end: times.nap1Start,
+      summary: "Use the first awake stretch for the highest-energy play and one easy inside backup.",
+      activitySlots: ["outdoor", "indoor"] as ActivitySlot[],
+    },
+    {
+      id: "midday" as const,
+      label: "Midday block",
+      start: times.nap1End,
+      end: times.nap2Start,
+      summary: times.hasSecondNap
+        ? "This is the best window for a mini outing or a calm reset before nap two."
+        : "Use this post-nap window for the outing anchor, then slow the pace before evening.",
+      activitySlots: ["adventure", "calm"] as ActivitySlot[],
+    },
+    {
+      id: "afternoon" as const,
+      label: "Afternoon block",
+      start: times.nap2End,
+      end: times.bed,
+      summary: times.hasSecondNap
+        ? "Keep the landing soft after nap two and bias toward connection over complexity."
+        : "Treat this as the late-day wind-down block and keep expectations low-friction.",
+      activitySlots: ["together"] as ActivitySlot[],
+    },
+  ];
+
+  return blocks.map((block) => ({
+    id: block.id,
+    label: block.label,
+    timeRange: formatRange(block.start, Math.max(block.start + 30, block.end)),
+    summary: block.summary,
+    activitySlots: block.activitySlots,
+    activityNames: block.activitySlots
+      .map((slot) => activities.find((activity) => activity.slot === slot)?.name)
+      .filter((value): value is string => Boolean(value)),
+  }));
 }
 
 function heuristicActivity(slot: ActivitySlot, profile: FamilyProfile, discovery: LocalPlace[], weatherSummary: string): ActivityCard {
@@ -217,7 +373,7 @@ async function generateActivitiesWithAi(profile: FamilyProfile, history: History
     prompt: `Parent: ${profile.parentName}
 Kids: ${listChildren(profile)}
 Location: ${profile.location.label || [profile.location.city, profile.location.zip].filter(Boolean).join(", ")}
-Schedule: school=${profile.schedule.schoolHours || "n/a"}, nap=${profile.schedule.napWindow || "n/a"}, free=${profile.schedule.freeTimeWindows || "n/a"}
+Schedule: ${buildScheduleSummary(profile)}
 Preferences: ${profile.preferences.indoorOutdoorPreference}, mess tolerance ${profile.preferences.messTolerance}/5, energy ${profile.preferences.energyLevelToday}/5
 Materials: ${profile.materials.join(", ") || "basic household materials"}
 Weather: ${weatherText}
@@ -297,6 +453,7 @@ export async function buildDailyPlan(options: {
     const match = aiObject?.activities?.find((activity) => activity.slot === slot) ?? aiObject?.activities?.[index];
     return normalizeActivity(slot, match ?? {}, profile, discovery, weatherText, index);
   });
+  const timeline = buildTimeline(profile, activities);
 
   const plan: DailyPlan = {
     dateKey: todayKey(),
@@ -305,6 +462,7 @@ export async function buildDailyPlan(options: {
       aiObject?.encouragement || "You do not need a perfect day. You need one good next move and a couple of soft landings.",
     weather,
     activities,
+    timeline,
     discovery,
     napTrap: aiObject?.napTrap?.length ? aiObject.napTrap : fallbackNapTrap(),
   };
@@ -326,7 +484,7 @@ export async function buildChatSystemPrompt(profile: FamilyProfile, history: His
     `Parent: ${profile.parentName}`,
     `Kids: ${listChildren(profile)}`,
     `Location: ${profile.location.label || [profile.location.city, profile.location.zip].filter(Boolean).join(", ")}`,
-    `Schedule: school=${profile.schedule.schoolHours || "n/a"}; nap=${profile.schedule.napWindow || "n/a"}; free=${profile.schedule.freeTimeWindows || "n/a"}`,
+    `Schedule: ${buildScheduleSummary(profile)}`,
     `Preferences: ${profile.preferences.indoorOutdoorPreference}; mess tolerance ${profile.preferences.messTolerance}/5; energy ${profile.preferences.energyLevelToday}/5`,
     `Materials at home: ${profile.materials.join(", ") || "basic household items"}`,
     `Weather now: ${weather.summary}, ${weather.currentTemperature ?? weather.high}F, high ${weather.high}F, low ${weather.low}F, rain chance ${weather.precipitationChance}%`,

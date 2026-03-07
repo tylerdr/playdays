@@ -2,7 +2,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { DISCOVERY_CATEGORIES, localPlaceSchema, type FamilyLocation, type LocalPlace } from "@/lib/schemas";
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
-import { resolveLocation } from "@/lib/server/location";
+import { getLocationLabel, resolveLocation } from "@/lib/server/location";
 
 export interface DiscoveryResult {
   places: LocalPlace[];
@@ -128,17 +128,19 @@ async function generateAiPlaces(location: FamilyLocation, categories: string[]) 
     return [] as LocalPlace[];
   }
 
-  const resolved = await resolveLocation(location);
+  const city = location.city || location.label?.split(",")[0] || location.zip || "this city";
+  const label = getLocationLabel(location);
   const { object } = await generateObject({
     model: getOpenAIModel(),
     schema: z.object({
-      places: z.array(localPlaceSchema).min(4).max(8),
+      places: z.array(localPlaceSchema).min(5).max(8),
     }),
     system:
-      "You help parents find genuinely plausible kid-friendly outings. Keep names and formats realistic. Do not invent impossible distances or strange formatting.",
-    prompt: `Location: ${resolved.label}
+      "You help parents find genuinely plausible kid-friendly outings. Keep names and formats realistic. Prefer real or highly plausible places a parent would recognize in that city. Do not invent impossible distances or strange formatting.",
+    prompt: `City: ${city}
+Location label: ${label}
 Categories: ${(categories.length ? categories : [...DISCOVERY_CATEGORIES]).join(", ")}
-Return places with realistic names, short reasons, and occasional event-style notes when the place type commonly hosts them.`,
+Return 5 to 8 places with realistic names, short reasons, and occasional event-style notes when the place type commonly hosts them.`,
   });
 
   return object.places.map((place, index) => ({
@@ -149,7 +151,7 @@ Return places with realistic names, short reasons, and occasional event-style no
 }
 
 function fallbackPlaces(location: FamilyLocation, categories: string[]): LocalPlace[] {
-  const label = location.label || [location.city, location.zip].filter(Boolean).join(", ") || "your area";
+  const label = getLocationLabel(location);
   const selected = (categories.length ? categories : [...DISCOVERY_CATEGORIES]).slice(0, 5);
 
   return selected.map((category, index) => ({
@@ -168,7 +170,14 @@ function fallbackPlaces(location: FamilyLocation, categories: string[]): LocalPl
 }
 
 export async function discoverPlaces(location: FamilyLocation, categories: string[] = []): Promise<DiscoveryResult> {
-  const googlePlaces = await searchGooglePlaces(location, categories);
+  let googlePlaces: LocalPlace[] = [];
+
+  try {
+    googlePlaces = await searchGooglePlaces(location, categories);
+  } catch {
+    googlePlaces = [];
+  }
+
   if (googlePlaces.length) {
     return { places: googlePlaces, source: "google" };
   }

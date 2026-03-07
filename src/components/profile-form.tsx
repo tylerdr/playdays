@@ -56,6 +56,16 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
     }));
   }
 
+  function updateSchedule(patch: Partial<FamilyProfile["schedule"]>) {
+    setProfile((current) => ({
+      ...current,
+      schedule: {
+        ...current.schedule,
+        ...patch,
+      },
+    }));
+  }
+
   function addKid() {
     setProfile((current) => ({
       ...current,
@@ -167,7 +177,17 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                       { id: crypto.randomUUID(), name: "Nora", age: 4, interests: ["dinosaurs", "music"] },
                       { id: crypto.randomUUID(), name: "Leo", age: 2, interests: ["trucks", "animals"] },
                     ],
-                    schedule: { schoolHours: "No school today", napWindow: "1-3pm", freeTimeWindows: "9-11am, 3:30-5pm" },
+                    schedule: {
+                      schoolHours: "No school today",
+                      napWindow: "1-3pm",
+                      freeTimeWindows: "9-11am, 3:30-5pm",
+                      wakeTime: "07:00",
+                      nap1Start: "13:00",
+                      nap1End: "15:00",
+                      nap2Start: "",
+                      nap2End: "",
+                      bedtime: "19:30",
+                    },
                     preferences: { indoorOutdoorPreference: "balanced", messTolerance: 3, energyLevelToday: 4, digestEnabled: true },
                     materials: ["Craft supplies", "Bubbles", "Books", "Play-doh"],
                     notes: "A sleeping baby often changes the afternoon plan.",
@@ -317,18 +337,78 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                   <Input
                     id="schoolHours"
                     value={profile.schedule.schoolHours}
-                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, schoolHours: event.target.value } })}
+                    onChange={(event) => updateSchedule({ schoolHours: event.target.value })}
                     placeholder="Mon/Wed preschool 9am-12pm"
                     className="touch-safe rounded-2xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="napWindow">Typical nap window</Label>
+                  <Label htmlFor="wakeTime">Wake time</Label>
+                  <Input
+                    id="wakeTime"
+                    type="time"
+                    value={profile.schedule.wakeTime}
+                    onChange={(event) => updateSchedule({ wakeTime: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nap1Start">Nap 1 start</Label>
+                  <Input
+                    id="nap1Start"
+                    type="time"
+                    value={profile.schedule.nap1Start}
+                    onChange={(event) => updateSchedule({ nap1Start: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nap1End">Nap 1 end</Label>
+                  <Input
+                    id="nap1End"
+                    type="time"
+                    value={profile.schedule.nap1End}
+                    onChange={(event) => updateSchedule({ nap1End: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nap2Start">Nap 2 start</Label>
+                  <Input
+                    id="nap2Start"
+                    type="time"
+                    value={profile.schedule.nap2Start}
+                    onChange={(event) => updateSchedule({ nap2Start: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nap2End">Nap 2 end</Label>
+                  <Input
+                    id="nap2End"
+                    type="time"
+                    value={profile.schedule.nap2End}
+                    onChange={(event) => updateSchedule({ nap2End: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedtime">Bedtime</Label>
+                  <Input
+                    id="bedtime"
+                    type="time"
+                    value={profile.schedule.bedtime}
+                    onChange={(event) => updateSchedule({ bedtime: event.target.value })}
+                    className="touch-safe rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="napWindow">Nap notes</Label>
                   <Input
                     id="napWindow"
                     value={profile.schedule.napWindow}
-                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, napWindow: event.target.value } })}
-                    placeholder="1-3pm"
+                    onChange={(event) => updateSchedule({ napWindow: event.target.value })}
+                    placeholder="Carrier nap around 1-3pm if we are out"
                     className="touch-safe rounded-2xl"
                   />
                 </div>
@@ -337,7 +417,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                   <Input
                     id="freeTimeWindows"
                     value={profile.schedule.freeTimeWindows}
-                    onChange={(event) => updateProfile({ schedule: { ...profile.schedule, freeTimeWindows: event.target.value } })}
+                    onChange={(event) => updateSchedule({ freeTimeWindows: event.target.value })}
                     placeholder="9-11am, 3:30-5pm"
                     className="touch-safe rounded-2xl"
                   />

@@ -45,7 +45,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="touch-safe rounded-full px-7">
-                <Link href="/onboard">Set up my family</Link>
+                <Link href="/start-setup">Set up my family</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="touch-safe rounded-full px-7">
                 <Link href="/today">Preview today</Link>
