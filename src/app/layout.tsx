@@ -37,11 +37,13 @@ export const metadata: Metadata = {
     type: "website",
     url: siteConfig.url,
     siteName: "PlayDays",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "PlayDays" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PlayDays",
     description: siteConfig.description,
+    images: ["/og-image.png"],
   },
 };
 
