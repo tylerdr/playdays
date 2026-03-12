@@ -15,9 +15,10 @@ export const marketingNav = [
 export const appNav = [
   { href: "/today", label: "Today" },
   { href: "/discover", label: "Discover" },
+  { href: "/events", label: "Events" },
   { href: "/chat", label: "Chat" },
   { href: "/history", label: "History" },
-  { href: "/settings", label: "Settings" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export const slotMeta: Record<

@@ -70,7 +70,7 @@ function renderDigest(profile: FamilyProfile, plan: DailyPlan) {
             </div>
 
             <div style="margin-top:28px;border-top:1px solid rgba(80,102,84,0.12);padding-top:18px;font-size:13px;color:#6b786b;line-height:1.7;">
-              Sent for ${escapeHtml(profile.parentName)}. To change digest settings, visit ${escapeHtml((process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000") + "/settings")}
+              Sent for ${escapeHtml(profile.parentName)}. To change digest settings, visit ${escapeHtml((process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000") + "/profile")}
             </div>
           </div>
         </div>
