@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Clock3, LoaderCircle, Mail, MapPin, RefreshCw, Sparkles } from "lucide-react";
-import { createDemoProfile, type ActivityCard as ActivityCardType, type DailyPlan, type FamilyProfile } from "@/lib/schemas";
+import {
+  createDemoProfile,
+  type ActivityCard as ActivityCardType,
+  type DailyPlan,
+  type DiscoverySource,
+  type FamilyProfile,
+  type SavedItem,
+} from "@/lib/schemas";
 import {
   getCachedPlan,
   getHistory,
@@ -40,6 +47,31 @@ async function generatePlan(profile: FamilyProfile, replaceSlot?: ActivityCardTy
   }
 
   return response.json() as Promise<{ plan?: DailyPlan; activity?: ActivityCardType; source: string }>;
+}
+
+function getDiscoveryFraming(mode: DiscoverySource | null) {
+  switch (mode) {
+    case "ai":
+      return {
+        title: "Local ideas to double-check",
+        note: "These are smart backup suggestions for your area. Double-check hours and details before you head out.",
+      };
+    case "fallback":
+      return {
+        title: "Quick outing backups",
+        note: "Live place listings are unavailable right now, so these are map-ready category searches rather than vetted venues.",
+      };
+    default:
+      return {
+        title: "Nearby options for today",
+        note: null,
+      };
+  }
+}
+
+function getPinnedMapsUrl(item: SavedItem | null) {
+  const value = item?.payload?.mapsUrl;
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 export function TodayBoard() {
@@ -93,6 +125,9 @@ export function TodayBoard() {
   }, [profile, plan, refreshDay]);
 
   const pinnedPlace = getPinnedPlace();
+  const discoveryMode = plan?.discoveryMode ?? (source as DiscoverySource | null);
+  const discoveryFraming = getDiscoveryFraming(discoveryMode);
+  const pinnedMapsUrl = getPinnedMapsUrl(pinnedPlace);
 
   async function replaceSlot(slot: ActivityCardType["slot"]) {
     if (!profile || !plan) {
@@ -218,13 +253,12 @@ export function TodayBoard() {
             <p className="text-base text-foreground">{plan?.weather.summary ?? "Loading weather..."}</p>
             {plan ? (
               <>
-                <p>High {plan.weather.high}F · Low {plan.weather.low}F · Rain chance {plan.weather.precipitationChance}%</p>
+                <p>High {plan.weather.high}°F · Low {plan.weather.low}°F · Rain chance {plan.weather.precipitationChance}%</p>
                 <p>{plan.weather.recommendation}</p>
               </>
             ) : (
               <p>Pulling local weather and fitting the day around it.</p>
             )}
-            {source ? <Badge variant="outline" className="rounded-full">Discovery source: {source}</Badge> : null}
           </CardContent>
         </Card>
       </section>
@@ -272,13 +306,25 @@ export function TodayBoard() {
         <Card className="card-soft mt-6 border-border/60">
           <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Pinned local pick</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">Today&apos;s outing anchor</p>
               <p className="text-xl font-semibold text-foreground">{pinnedPlace.title}</p>
               <p className="text-sm text-muted-foreground">{pinnedPlace.subtitle}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Pinned from Discover so it stays visible while you work the rest of the day.
+              </p>
             </div>
-            <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMessage("Pinned outing stays at the top of today.")}>
-              Keep in today&apos;s mix
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {pinnedMapsUrl ? (
+                <Button asChild className="touch-safe rounded-2xl">
+                  <a href={pinnedMapsUrl} target="_blank" rel="noreferrer">
+                    Open map
+                  </a>
+                </Button>
+              ) : null}
+              <Button asChild variant="outline" className="touch-safe rounded-2xl">
+                <Link href="/discover">Choose another outing</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -311,19 +357,39 @@ export function TodayBoard() {
         <section className="mt-8 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
           <Card className="card-soft border-border/60">
             <CardHeader>
-              <CardTitle className="text-2xl">Nearby options for today</CardTitle>
+              <CardTitle className="text-2xl">{discoveryFraming.title}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3">
+              {discoveryFraming.note ? (
+                <div className="rounded-[1.4rem] border border-border/60 bg-white/80 p-4 text-sm leading-7 text-muted-foreground">
+                  {discoveryFraming.note}
+                </div>
+              ) : null}
               {plan.discovery.slice(0, 3).map((place) => (
                 <div key={place.id} className="rounded-[1.4rem] border border-border/60 bg-white/80 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-foreground">{place.name}</p>
-                      <p className="text-sm text-muted-foreground">{place.category} · {place.distanceMiles.toFixed(1)} mi</p>
+                      <p className="text-sm text-muted-foreground">
+                        {discoveryMode === "google"
+                          ? `${place.category} · ${place.distanceMiles.toFixed(1)} mi`
+                          : place.category}
+                      </p>
                     </div>
-                    {place.rating ? <Badge variant="outline" className="rounded-full">{place.rating.toFixed(1)} stars</Badge> : null}
+                    {discoveryMode === "google" && place.rating ? (
+                      <Badge variant="outline" className="rounded-full">
+                        {place.rating.toFixed(1)} stars
+                      </Badge>
+                    ) : null}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{place.address || place.hours}</p>
+                  {place.mapsUrl ? (
+                    <Button asChild variant="outline" className="mt-3 touch-safe rounded-2xl">
+                      <a href={place.mapsUrl} target="_blank" rel="noreferrer">
+                        Open map
+                      </a>
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </CardContent>

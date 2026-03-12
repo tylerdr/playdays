@@ -15,23 +15,23 @@ const highlights = [
   {
     icon: Wind,
     title: "Weather-smart",
-    body: "Open-Meteo steers the plan so the outside idea matches the day instead of ignoring it.",
+    body: "Weather shapes the outdoor idea and backup guidance so the day fits the forecast instead of fighting it.",
   },
   {
     icon: MapPin,
     title: "Local discovery",
-    body: "Pull parks, libraries, museums, and kid-friendly spots into the same planning flow.",
+    body: "Pull nearby outings into the same planning flow, with honest fallback guidance when live listings are thin.",
   },
   {
     icon: Mail,
-    title: "Morning digest",
-    body: "Ship the day by email before 7am so the plan is waiting before the chaos starts.",
+    title: "Morning reset",
+    body: "Keep the daily plan in one calm place instead of opening six tabs before breakfast.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <SiteShell>
+    <SiteShell variant="marketing">
       <section className="page-shell relative overflow-hidden py-12 sm:py-16 lg:py-20">
         <div className="grid-fade absolute inset-0 opacity-40" />
         <div className="hero-wash relative grid gap-8 rounded-[2.4rem] border border-border/60 px-5 py-8 shadow-2xl shadow-primary/5 sm:px-8 sm:py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-10">
@@ -41,14 +41,14 @@ export default function HomePage() {
               The home-screen app that answers, &quot;What are we doing today?&quot;
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
-              PlayDays gives parents one practical plan each morning: five activity cards, local outing ideas, nap-trap mode, and a chat assistant that knows your kids.
+              PlayDays gives parents one practical plan each morning: five activity cards, honest outing help, nap-trap backups, and quick guidance when the day swerves.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="touch-safe rounded-full px-7">
                 <Link href="/start-setup">Set up my family</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="touch-safe rounded-full px-7">
-                <Link href="/today">Preview today</Link>
+                <Link href="/today">See demo day</Link>
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -123,9 +123,9 @@ export default function HomePage() {
             <CardContent className="grid gap-4 md:grid-cols-2">
               {[
                 "Nap-trap mode for carrier naps, sleeping babies, and low-mobility moments.",
-                "Skips, saves, and done-it signals so the plan gets sharper over time.",
-                "Local parks, libraries, museums, splash pads, farms, and indoor play options.",
-                "Daily digest route ready for Vercel cron or manual trigger.",
+                "Done, save, and skip signals stay on this device so you can remember what actually worked.",
+                "Local parks, libraries, museums, splash pads, farms, and indoor backups in one place.",
+                "Quick backup guidance in chat, with live AI answers when that assistant is available.",
               ].map((item) => (
                 <div key={item} className="rounded-[1.5rem] border border-border/60 bg-white/80 p-4 text-sm leading-7 text-muted-foreground">
                   {item}
@@ -135,16 +135,18 @@ export default function HomePage() {
           </Card>
           <Card className="card-soft border-border/60">
             <CardHeader>
-              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">MVP pricing</p>
-              <CardTitle className="text-4xl">Free while the first family shapes it.</CardTitle>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">What you can use today</p>
+              <CardTitle className="text-4xl">A calmer plan first. Honest fallbacks second.</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
               <p>
-                MVP is free. The premium direction later is simple: full daily plan, unlimited chat, local event depth, and daily email digest for $6.99/mo.
+                PlayDays is strongest when it helps you choose one good next move fast. When live services are unavailable, it should still stay useful without pretending that a stub is a verified answer.
               </p>
               <div className="rounded-[1.5rem] border border-border/60 bg-white/80 p-4">
-                <p className="font-medium text-foreground">What is ready right now</p>
-                <p className="mt-2">Onboarding, daily plan generation, local discovery, personalized chat, history tracking, settings, PWA manifest, and digest endpoint.</p>
+                <p className="font-medium text-foreground">Right now, that means</p>
+                <p className="mt-2">
+                  family setup, a five-card daily plan, saved history on this device, pinned outings from Discover, and chat that falls back to quick guidance when live AI is unavailable.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -159,15 +161,15 @@ export default function HomePage() {
               <h2 className="mt-2 text-4xl">What parents usually need answered first</h2>
             </div>
             <Button asChild variant="outline" className="touch-safe rounded-full px-6">
-              <Link href="/chat">Try the AI assistant</Link>
+              <Link href="/chat">Try chat</Link>
             </Button>
           </div>
           <div className="mt-8 grid gap-4">
             {[
-              ["Does it use real AI?", "Yes. Daily generation and chat are wired to real OpenAI calls when your API key is present."],
-              ["Will weather actually change the plan?", "Yes. Open-Meteo informs the outdoor card, timing guidance, and the tone of the day."],
-              ["What if local places are not available?", "PlayDays uses Google Places when configured, then falls back to AI-generated local ideas."],
-              ["Can I install it on my phone?", "Yes. The app includes a manifest and installable PWA setup for home-screen use."],
+              ["Will weather actually change the plan?", "Yes. The forecast shapes the outdoor idea, pacing, and backup guidance for the day."],
+              ["What happens if local places are thin?", "PlayDays shows specific nearby places when it can and switches to map-ready backup searches when it cannot."],
+              ["What if live AI is unavailable?", "Chat still replies with quick backup guidance instead of dead-ending, and the rest of the app keeps working."],
+              ["Do I need a big setup before it helps?", "No. Setup is meant to take about two minutes, just enough to build your first useful day."],
             ].map(([question, answer]) => (
               <Card key={question} className="card-soft border-border/60">
                 <CardHeader>

@@ -3,7 +3,7 @@ import { ProfileForm } from "@/components/profile-form";
 
 export default function StartSetupPage() {
   return (
-    <SiteShell>
+    <SiteShell variant="setup">
       <ProfileForm mode="onboard" />
     </SiteShell>
   );

@@ -1,12 +1,18 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { DISCOVERY_CATEGORIES, localPlaceSchema, type FamilyLocation, type LocalPlace } from "@/lib/schemas";
+import {
+  DISCOVERY_CATEGORIES,
+  localPlaceSchema,
+  type DiscoverySource,
+  type FamilyLocation,
+  type LocalPlace,
+} from "@/lib/schemas";
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 import { getLocationLabel, resolveLocation } from "@/lib/server/location";
 
 export interface DiscoveryResult {
   places: LocalPlace[];
-  source: "google" | "ai" | "fallback";
+  source: DiscoverySource;
 }
 
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -25,6 +31,13 @@ function titleCase(value: string) {
     .split(" ")
     .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
     .join(" ");
+}
+
+function buildMapsSearchUrl(query: string) {
+  const url = new URL("https://www.google.com/maps/search/");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("query", query);
+  return url.toString();
 }
 
 async function searchGooglePlaces(location: FamilyLocation, categories: string[]) {
@@ -113,7 +126,7 @@ async function searchGooglePlaces(location: FamilyLocation, categories: string[]
           `Strong fit for ${category}`,
           place.currentOpeningHours?.openNow ? "Looks open now" : "Good backup outing",
         ],
-        mapsUrl: place.googleMapsUri ?? "",
+        mapsUrl: place.googleMapsUri ?? buildMapsSearchUrl(`${place.displayName.text} ${resolved.label}`),
       });
     }
   }
@@ -147,6 +160,7 @@ Return 5 to 8 places with realistic names, short reasons, and occasional event-s
     ...place,
     id: place.id || `ai-place-${index}`,
     distanceMiles: Number(place.distanceMiles.toFixed(1)),
+    mapsUrl: place.mapsUrl || buildMapsSearchUrl(`${place.name} ${label}`),
   }));
 }
 
@@ -156,16 +170,19 @@ function fallbackPlaces(location: FamilyLocation, categories: string[]): LocalPl
 
   return selected.map((category, index) => ({
     id: `fallback-${category}-${index}`,
-    name: `${label} ${titleCase(category)}`,
-    category: titleCase(category),
-    distanceMiles: index + 1,
+    name: `Search ${category} near ${label}`,
+    category: "Map-ready backup",
+    distanceMiles: 0,
     rating: null,
-    hours: "Search local listing for todays hours",
-    address: label,
+    hours: "Open the map search to choose the exact stop and confirm today's hours.",
+    address: "",
     kidFriendly: true,
-    todayEvent: category === "libraries" ? "Check for story time blocks this morning" : null,
-    reasons: ["Good same-day outing category", "Works well when the plan needs a location change"],
-    mapsUrl: "",
+    todayEvent: category === "libraries" ? "Check if story time or toddler hour is running today" : null,
+    reasons: [
+      `Quick category search for ${titleCase(category).toLowerCase()} when you need a fast outing pivot`,
+      "Choose the exact venue in the map before you head out",
+    ],
+    mapsUrl: buildMapsSearchUrl(`${category} near ${label}`),
   }));
 }
 

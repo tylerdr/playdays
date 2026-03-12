@@ -55,6 +55,7 @@ export async function getWeather(location: FamilyLocation): Promise<WeatherSumma
     "daily",
     "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
   );
+  url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("timezone", resolved.timezone || "auto");
   url.searchParams.set("forecast_days", "1");
 

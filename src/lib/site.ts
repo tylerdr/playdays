@@ -8,10 +8,8 @@ export const siteConfig = {
 };
 
 export const marketingNav = [
+  { href: "/", label: "Home" },
   { href: "/start-setup", label: "Start setup" },
-  { href: "/today", label: "Today" },
-  { href: "/discover", label: "Discover" },
-  { href: "/chat", label: "Chat" },
 ];
 
 export const appNav = [

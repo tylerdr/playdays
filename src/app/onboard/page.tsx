@@ -1,10 +1,5 @@
-import { SiteShell } from "@/components/site-shell";
-import { ProfileForm } from "@/components/profile-form";
+import { redirect } from "next/navigation";
 
 export default function OnboardPage() {
-  return (
-    <SiteShell>
-      <ProfileForm mode="onboard" />
-    </SiteShell>
-  );
+  redirect("/start-setup");
 }

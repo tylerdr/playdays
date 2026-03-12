@@ -66,6 +66,9 @@ export const localPlaceSchema = z.object({
 });
 export type LocalPlace = z.infer<typeof localPlaceSchema>;
 
+export const discoverySourceSchema = z.enum(["google", "ai", "fallback"]);
+export type DiscoverySource = z.infer<typeof discoverySourceSchema>;
+
 export const activityCardSchema = z.object({
   id: z.string(),
   slot: activitySlotSchema,
@@ -118,6 +121,7 @@ export const dailyPlanSchema = z.object({
   headline: z.string(),
   encouragement: z.string(),
   weather: weatherSummarySchema,
+  discoveryMode: discoverySourceSchema.default("fallback"),
   activities: z.array(activityCardSchema).length(5),
   timeline: z.array(scheduleBlockSchema).default([]),
   discovery: z.array(localPlaceSchema).default([]),

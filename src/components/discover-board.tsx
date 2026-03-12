@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, MapPin, Sparkles } from "lucide-react";
-import { DISCOVERY_CATEGORIES, createDemoProfile, type FamilyLocation, type LocalPlace } from "@/lib/schemas";
+import {
+  DISCOVERY_CATEGORIES,
+  createDemoProfile,
+  type DiscoverySource,
+  type FamilyLocation,
+  type LocalPlace,
+} from "@/lib/schemas";
 import { getProfile, savePinnedPlace, saveProfile, saveSavedItem } from "@/lib/storage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,14 +31,27 @@ async function fetchPlaces(location: FamilyLocation, categories: string[]) {
     throw new Error(data?.error ?? "Could not load nearby places.");
   }
 
-  return response.json() as Promise<{ places: LocalPlace[]; source: string }>;
+  return response.json() as Promise<{ places: LocalPlace[]; source: DiscoverySource }>;
+}
+
+function getDiscoveryNote(source: DiscoverySource | null) {
+  switch (source) {
+    case "ai":
+      return "These are smart backup suggestions for your area. Double-check hours and details before you head out.";
+    case "fallback":
+      return "Live place listings are unavailable right now, so these cards are map-ready category searches that help you pick the exact stop fast.";
+    case "google":
+      return "Showing specific nearby places with map links and live listing details when available.";
+    default:
+      return "Search your area when you need a fast outing pivot.";
+  }
 }
 
 export function DiscoverBoard() {
   const [location, setLocation] = useState<FamilyLocation>({ zip: "", city: "", label: "" });
   const [selected, setSelected] = useState<string[]>(["parks", "libraries", "playgrounds"]);
   const [places, setPlaces] = useState<LocalPlace[]>([]);
-  const [source, setSource] = useState<string | null>(null);
+  const [source, setSource] = useState<DiscoverySource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -68,7 +87,6 @@ export function DiscoverBoard() {
       ? selected.filter((item) => item !== category)
       : [...selected, category];
     setSelected(next);
-    void runSearch(location, next);
   }
 
   function useDemoLocation() {
@@ -80,14 +98,28 @@ export function DiscoverBoard() {
   }
 
   function addToToday(place: LocalPlace) {
-    savePinnedPlace(place);
     saveSavedItem({
       type: "place",
       title: place.name,
-      subtitle: `${place.category} · ${place.distanceMiles.toFixed(1)} mi`,
+      subtitle:
+        source === "google"
+          ? `${place.category} · ${place.distanceMiles.toFixed(1)} mi`
+          : place.category,
       payload: place as unknown as Record<string, unknown>,
     });
-    setMessage(`${place.name} pinned for today.`);
+
+    if (source === "google") {
+      savePinnedPlace(place);
+      setMessage(`${place.name} pinned as today's outing anchor.`);
+      return;
+    }
+
+    if (source === "fallback") {
+      setMessage("Map search saved. Open the map to choose the exact stop for today.");
+      return;
+    }
+
+    setMessage("Saved as a backup idea. Double-check the details before you head out.");
   }
 
   return (
@@ -147,7 +179,9 @@ export function DiscoverBoard() {
                 </Button>
               ))}
             </div>
-            {source ? <Badge variant="outline" className="rounded-full">Source: {source}</Badge> : null}
+            <div className="rounded-[1.3rem] border border-border/60 bg-white/75 p-4 text-sm leading-7 text-muted-foreground">
+              {getDiscoveryNote(source)}
+            </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {message ? <p className="text-sm text-primary">{message}</p> : null}
           </CardContent>
@@ -160,9 +194,17 @@ export function DiscoverBoard() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xl font-semibold text-foreground">{place.name}</p>
-                    <p className="text-sm text-muted-foreground">{place.category} · {place.distanceMiles.toFixed(1)} mi away</p>
+                    <p className="text-sm text-muted-foreground">
+                      {source === "google"
+                        ? `${place.category} · ${place.distanceMiles.toFixed(1)} mi away`
+                        : place.category}
+                    </p>
                   </div>
-                  {place.rating ? <Badge variant="outline" className="rounded-full">{place.rating.toFixed(1)} stars</Badge> : null}
+                  {source === "google" && place.rating ? (
+                    <Badge variant="outline" className="rounded-full">
+                      {place.rating.toFixed(1)} stars
+                    </Badge>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {place.kidFriendly ? <Badge className="rounded-full bg-secondary text-secondary-foreground">Kid-friendly</Badge> : null}
@@ -176,7 +218,11 @@ export function DiscoverBoard() {
                 </ul>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button className="touch-safe rounded-2xl" onClick={() => addToToday(place)}>
-                    Add to today&apos;s plan
+                    {source === "google"
+                      ? "Pin for today's outing"
+                      : source === "fallback"
+                        ? "Save search for later"
+                        : "Save as backup idea"}
                   </Button>
                   {place.mapsUrl ? (
                     <Button asChild variant="outline" className="touch-safe rounded-2xl">
@@ -192,7 +238,7 @@ export function DiscoverBoard() {
           {!places.length && !loading ? (
             <Card className="card-soft border-border/60">
               <CardContent className="py-10 text-sm text-muted-foreground">
-                Choose a location and tap search. PlayDays will use Google Places when available, then fall back to AI-generated local ideas.
+                Choose a location, pick the outing categories you want, and tap search. PlayDays will show specific nearby places when available and switch to lighter backup guidance when it cannot.
               </CardContent>
             </Card>
           ) : null}

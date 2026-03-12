@@ -461,6 +461,7 @@ export async function buildDailyPlan(options: {
     encouragement:
       aiObject?.encouragement || "You do not need a perfect day. You need one good next move and a couple of soft landings.",
     weather,
+    discoveryMode: discoveryResult.source,
     activities,
     timeline,
     discovery,

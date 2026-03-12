@@ -1,11 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { getHistory, getSavedItems } from "@/lib/storage";
 import type { HistoryEntry, SavedItem } from "@/lib/schemas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+function getMapsUrl(item: SavedItem) {
+  const value = item.payload?.mapsUrl;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
 
 export function HistoryBoard() {
   const [history] = useState<HistoryEntry[]>(() => getHistory());
@@ -33,24 +40,34 @@ export function HistoryBoard() {
       <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="card-soft border-border/60">
           <CardHeader>
-            <Badge className="w-fit rounded-full bg-primary text-primary-foreground">Preference learning</Badge>
-            <CardTitle className="text-4xl text-balance">The app gets sharper as you use it.</CardTitle>
+            <Badge className="w-fit rounded-full bg-primary text-primary-foreground">On-device history</Badge>
+            <CardTitle className="text-4xl text-balance">A simple record of what you finished, skipped, and saved.</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
-              <p className="text-sm text-muted-foreground">This month done</p>
-              <p className="mt-2 text-4xl font-semibold text-foreground">{summary.monthDone}</p>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
+                <p className="text-sm text-muted-foreground">This month done</p>
+                <p className="mt-2 text-4xl font-semibold text-foreground">{summary.monthDone}</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
+                <p className="text-sm text-muted-foreground">This month skipped</p>
+                <p className="mt-2 text-4xl font-semibold text-foreground">{summary.monthSkipped}</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
+                <p className="text-sm text-muted-foreground">Most-used slot</p>
+                <p className="mt-2 text-2xl font-semibold capitalize text-foreground">{summary.favoriteSlot}</p>
+              </div>
             </div>
-            <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
-              <p className="text-sm text-muted-foreground">This month skipped</p>
-              <p className="mt-2 text-4xl font-semibold text-foreground">{summary.monthSkipped}</p>
+            <div className="rounded-[1.5rem] border border-border/60 bg-white/80 p-5 text-sm leading-7 text-muted-foreground">
+              PlayDays uses this local history to keep receipts of what happened on this device. It is useful for revisiting what worked, but it is not a deep learning system yet.
             </div>
-            <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
-              <p className="text-sm text-muted-foreground">Top category</p>
-              <p className="mt-2 text-2xl font-semibold capitalize text-foreground">{summary.favoriteSlot}</p>
-            </div>
-            <div className="rounded-[1.5rem] border border-border/60 bg-white/80 p-5 text-sm leading-7 text-muted-foreground sm:col-span-3">
-              This month you did {summary.monthDone} activities. Top category: {summary.favoriteSlot}. The next quality jump comes from tapping Done it and Skip honestly so the model can learn your real rhythm.
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button asChild className="touch-safe rounded-2xl px-6">
+                <Link href="/today">Back to today</Link>
+              </Button>
+              <Button asChild variant="outline" className="touch-safe rounded-2xl">
+                <Link href="/discover">Find an outing</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -61,17 +78,36 @@ export function HistoryBoard() {
           </CardHeader>
           <CardContent className="grid gap-3">
             {saved.length ? (
-              saved.slice(0, 8).map((item) => (
-                <div key={item.id} className="rounded-[1.4rem] border border-border/60 bg-white/80 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-foreground">{item.title}</p>
-                    <Badge variant="outline" className="rounded-full">{item.type}</Badge>
+              saved.slice(0, 8).map((item) => {
+                const mapsUrl = getMapsUrl(item);
+                return (
+                  <div key={item.id} className="rounded-[1.4rem] border border-border/60 bg-white/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-foreground">{item.title}</p>
+                      <Badge variant="outline" className="rounded-full">
+                        {item.type}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                      <Button asChild variant="outline" className="touch-safe rounded-2xl">
+                        <Link href="/today">Open today</Link>
+                      </Button>
+                      {mapsUrl ? (
+                        <Button asChild className="touch-safe rounded-2xl">
+                          <a href={mapsUrl} target="_blank" rel="noreferrer">
+                            Open map
+                          </a>
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <p className="text-sm text-muted-foreground">Saved ideas and places will show up here once you start bookmarking them.</p>
+              <div className="rounded-[1.5rem] border border-dashed border-border/80 bg-white/70 p-5 text-sm leading-7 text-muted-foreground">
+                Save a plan card or outing and it will land here for easy reuse later.
+              </div>
             )}
           </CardContent>
         </Card>
@@ -89,14 +125,20 @@ export function HistoryBoard() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-medium text-foreground">{entry.title}</p>
-                      <p className="text-sm capitalize text-muted-foreground">{entry.slot} · {entry.action}</p>
+                      <p className="text-sm capitalize text-muted-foreground">
+                        {entry.slot} · {entry.action}
+                      </p>
                     </div>
-                    <Badge variant="outline" className="rounded-full">{new Date(entry.timestamp).toLocaleString()}</Badge>
+                    <Badge variant="outline" className="rounded-full">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </Badge>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">Start marking activities done, skipped, or saved and the history will stack up here.</p>
+              <div className="rounded-[1.5rem] border border-dashed border-border/80 bg-white/70 p-5 text-sm leading-7 text-muted-foreground">
+                Nothing logged yet. Mark a card done, skipped, or saved on Today and the activity trail will start here.
+              </div>
             )}
           </CardContent>
         </Card>

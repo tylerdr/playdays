@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
@@ -33,15 +34,24 @@ function buildInitialProfile() {
 export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [hasExistingProfile, setHasExistingProfile] = useState(() => Boolean(getProfile()));
+  const [editing, setEditing] = useState(() => mode === "onboard");
   const [profile, setProfile] = useState<FamilyProfile>(buildInitialProfile);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const title = mode === "onboard" ? "Set up your family once" : "Update your family settings";
+  const title =
+    mode === "onboard"
+      ? "Build your first calmer day"
+      : editing
+        ? "Edit family details"
+        : "Family settings";
   const description =
     mode === "onboard"
-      ? "PlayDays uses this to shape weather-smart suggestions, local picks, and chat context."
-      : "Tighten the profile and the daily plan gets better fast.";
+      ? "Takes about two minutes. Just enough to shape your first weather-smart plan."
+      : editing
+        ? "Update the details that shape your plan, discovery, and chat context."
+        : "Review what PlayDays knows about your family, then make quick edits only when something changes.";
 
   const progress = useMemo(() => ((step + 1) / steps.length) * 100, [step]);
 
@@ -108,10 +118,15 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
       });
       saveProfile(parsed);
       setProfile(parsed);
+      setHasExistingProfile(true);
       setError(null);
       setStatus(mode === "onboard" ? "Profile saved. Building your day next." : "Settings saved.");
       if (modeAfterSave === "today") {
         router.push("/today");
+        return;
+      }
+      if (mode === "settings") {
+        setEditing(false);
       }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to save profile.");
@@ -125,6 +140,32 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
         ? profile.kids.every((kid) => kid.name.trim().length > 0)
         : true;
 
+  if (mode === "settings" && !hasExistingProfile) {
+    return (
+      <div className="page-shell py-10 sm:py-14">
+        <Card className="card-soft mx-auto max-w-3xl border-border/60">
+          <CardHeader>
+            <Badge variant="outline" className="w-fit rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-primary">
+              Settings
+            </Badge>
+            <CardTitle className="text-4xl text-balance">Finish setup before you use settings.</CardTitle>
+            <CardDescription className="text-base leading-7">
+              Settings are for maintaining a saved family profile. Start setup first, or open the demo day if you just want to look around.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="touch-safe rounded-2xl px-6">
+              <Link href="/start-setup">Start setup</Link>
+            </Button>
+            <Button asChild variant="outline" className="touch-safe rounded-2xl">
+              <Link href="/today">See demo day</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="page-shell py-10 sm:py-14">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -137,30 +178,53 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
             <CardDescription className="text-base leading-7">{description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>{steps[step]}</span>
-                <span>{step + 1} / {steps.length}</span>
+            {mode === "onboard" || editing ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{steps[step]}</span>
+                    <span>{step + 1} / {steps.length}</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+                <div className="grid gap-2">
+                  {steps.map((item, index) => (
+                    <Button
+                      key={item}
+                      type="button"
+                      variant={index === step ? "default" : "ghost"}
+                      className="touch-safe justify-start rounded-2xl px-4"
+                      onClick={() => setStep(index)}
+                    >
+                      {item}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-3">
+                <div className="rounded-[1.25rem] border border-border/60 bg-white/70 p-4 text-sm leading-7 text-muted-foreground">
+                  <p className="font-medium text-foreground">Family snapshot</p>
+                  <p className="mt-2">
+                    {profile.kids.length} kids, {profile.materials.length} materials saved, digest{" "}
+                    {profile.preferences.digestEnabled ? "on" : "off"}.
+                  </p>
+                </div>
+                <div className="rounded-[1.25rem] border border-border/60 bg-white/70 p-4 text-sm leading-7 text-muted-foreground">
+                  <p className="font-medium text-foreground">Today&apos;s shape</p>
+                  <p className="mt-2">
+                    {profile.location.label || [profile.location.city, profile.location.zip].filter(Boolean).join(", ")} · wake{" "}
+                    {profile.schedule.wakeTime} · bedtime {profile.schedule.bedtime}
+                  </p>
+                </div>
               </div>
-              <Progress value={progress} className="h-2" />
-            </div>
-            <div className="grid gap-2">
-              {steps.map((item, index) => (
-                <Button
-                  key={item}
-                  type="button"
-                  variant={index === step ? "default" : "ghost"}
-                  className="touch-safe justify-start rounded-2xl px-4"
-                  onClick={() => setStep(index)}
-                >
-                  {item}
-                </Button>
-              ))}
-            </div>
+            )}
             <div className="rounded-[1.25rem] border border-border/60 bg-white/70 p-4 text-sm leading-7 text-muted-foreground">
-              <p className="font-medium text-foreground">What this tunes</p>
+              <p className="font-medium text-foreground">
+                {mode === "onboard" ? "How this personalizes your first plan" : "What these settings shape"}
+              </p>
               <p>
-                Weather fit, activity difficulty, one-handed options, local outing picks, and the tone of the AI chat.
+                Weather fit, activity difficulty, one-handed options, local outing picks, and the tone of chat guidance.
               </p>
             </div>
             {mode === "onboard" ? (
@@ -206,6 +270,63 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
 
         <Card className="card-soft border-border/60">
           <CardContent className="space-y-8 pt-6">
+            {mode === "settings" && !editing ? (
+              <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
+                    <p className="text-sm text-muted-foreground">Location</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      {profile.location.label || [profile.location.city, profile.location.zip].filter(Boolean).join(", ")}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Used for weather, nearby outings, and calmer same-day pivots.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
+                    <p className="text-sm text-muted-foreground">Kids</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      {profile.kids.map((kid) => kid.name).join(", ")}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Ages {profile.kids.map((kid) => kid.age).join(", ")} · interests help tune the activity mix.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
+                    <p className="text-sm text-muted-foreground">Rhythm</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
+                      Wake {profile.schedule.wakeTime} · Bed {profile.schedule.bedtime}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Free windows: {profile.schedule.freeTimeWindows || "not set yet"}.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
+                    <p className="text-sm text-muted-foreground">Materials</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">{profile.materials.length} ready at home</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {profile.materials.slice(0, 4).join(", ")}
+                      {profile.materials.length > 4 ? "..." : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-[1.5rem] border border-border/60 bg-white/80 p-5 text-sm leading-7 text-muted-foreground">
+                  Settings keep your saved family profile current. History and saved items still live on this device.
+                </div>
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {status ? <p className="text-sm text-primary">{status}</p> : null}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button type="button" className="touch-safe rounded-2xl px-6" onClick={() => setEditing(true)}>
+                    Edit family details
+                  </Button>
+                  <Button asChild variant="outline" className="touch-safe rounded-2xl">
+                    <Link href="/today">Open today</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {mode === "settings" && !editing ? null : (
+              <>
             {step === 0 ? (
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
@@ -564,6 +685,11 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                 Back
               </Button>
               <div className="flex flex-col gap-3 sm:flex-row">
+                {mode === "settings" ? (
+                  <Button type="button" variant="ghost" className="touch-safe rounded-2xl" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                ) : null}
                 {step < steps.length - 1 ? (
                   <Button
                     type="button"
@@ -580,6 +706,8 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                 )}
               </div>
             </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
