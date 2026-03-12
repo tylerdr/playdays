@@ -7,14 +7,15 @@ import {
 } from "ai";
 import { NextResponse } from "next/server";
 import {
-  familyProfileSchema,
-  historyEntrySchema,
   type FamilyProfile,
   type HistoryEntry,
+  familyProfileSchema,
+  historyEntrySchema,
 } from "@/lib/schemas";
+import { getAuthenticatedFamilyContext } from "@/lib/server/family-context";
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 import { discoverPlaces } from "@/lib/server/discovery";
-import { buildChatSystemPrompt } from "@/lib/server/plan";
+import { buildChatSystemPrompt, buildContextualChatSystemPrompt } from "@/lib/server/plan";
 import { getWeather } from "@/lib/server/weather";
 
 export const runtime = "nodejs";
@@ -61,7 +62,16 @@ function summarizeHistory(history: HistoryEntry[]) {
   return `On this device so far: ${doneCount} done, ${skipCount} skipped.`;
 }
 
-async function buildFallbackReply(prompt: string, profile: FamilyProfile | null, history: HistoryEntry[]) {
+async function buildFallbackReply(
+  prompt: string,
+  profile: FamilyProfile | null,
+  history: HistoryEntry[],
+  options?: {
+    savedEvents?: string[];
+    customSources?: string[];
+    upcomingEvents?: string[];
+  },
+) {
   const loweredPrompt = prompt.toLowerCase();
   const lines = [
     profile
@@ -140,6 +150,18 @@ async function buildFallbackReply(prompt: string, profile: FamilyProfile | null,
     lines.push(historyLine);
   }
 
+  if (options?.savedEvents?.length) {
+    lines.push(`Saved events on file: ${options.savedEvents.slice(0, 3).join(", ")}.`);
+  }
+
+  if (options?.customSources?.length) {
+    lines.push(`Regular programs in your setup: ${options.customSources.slice(0, 3).join(", ")}.`);
+  }
+
+  if (options?.upcomingEvents?.length) {
+    lines.push(`Upcoming local events to verify before heading out: ${options.upcomingEvents.slice(0, 3).join(", ")}.`);
+  }
+
   return lines.join("\n\n");
 }
 
@@ -173,17 +195,37 @@ export async function POST(request: Request) {
 
   const parsedProfile = body.profile ? familyProfileSchema.safeParse(body.profile) : null;
   const parsedHistory = body.history ? historyEntrySchema.array().safeParse(body.history) : null;
-  const profile = parsedProfile?.success ? parsedProfile.data : null;
-  const history = parsedHistory?.success ? parsedHistory.data : [];
+  const serverContext = await getAuthenticatedFamilyContext();
+  const localProfile = parsedProfile?.success ? parsedProfile.data : null;
+  const localHistory = parsedHistory?.success ? parsedHistory.data : [];
+  const profile = serverContext.profile ?? localProfile;
+  const history = serverContext.profile ? serverContext.history : localHistory;
+  const savedEvents = serverContext.profile ? serverContext.savedEvents : [];
+  const customSources = serverContext.profile ? serverContext.customSources : [];
+  const upcomingEvents = serverContext.profile ? serverContext.upcomingEvents : [];
   const lastUserText = readLastUserText(body.messages);
 
   if (!hasOpenAIKey()) {
-    const fallback = await buildFallbackReply(lastUserText, profile, history);
+    const fallback = await buildFallbackReply(lastUserText, profile, history, {
+      savedEvents: savedEvents.map((event) => event.title),
+      customSources: customSources.map((source) => source.name),
+      upcomingEvents: upcomingEvents.map((event) => event.title),
+    });
     return createFallbackResponse(body.messages, fallback);
   }
 
   try {
-    const system = profile ? await buildChatSystemPrompt(profile, history) : buildGenericChatSystemPrompt();
+    const system = profile
+      ? serverContext.profile
+        ? await buildContextualChatSystemPrompt({
+            profile,
+            history,
+            savedEvents,
+            customSources,
+            upcomingEvents,
+          })
+        : await buildChatSystemPrompt(profile, history)
+      : buildGenericChatSystemPrompt();
 
     const result = streamText({
       model: getOpenAIModel(),
@@ -195,7 +237,11 @@ export async function POST(request: Request) {
       originalMessages: body.messages,
     });
   } catch {
-    const fallback = await buildFallbackReply(lastUserText, profile, history);
+    const fallback = await buildFallbackReply(lastUserText, profile, history, {
+      savedEvents: savedEvents.map((event) => event.title),
+      customSources: customSources.map((source) => source.name),
+      upcomingEvents: upcomingEvents.map((event) => event.title),
+    });
     return createFallbackResponse(body.messages, fallback);
   }
 }
