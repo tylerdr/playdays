@@ -143,7 +143,7 @@ async function generateAiPlaces(location: FamilyLocation, categories: string[]) 
 
   const city = location.city || location.label?.split(",")[0] || location.zip || "this city";
   const label = getLocationLabel(location);
-  const { object } = await generateObject({
+  const { object } = await generateObject({ mode: "json",
     model: getOpenAIModel(),
     schema: z.object({
       places: z.array(localPlaceSchema).min(5).max(8),

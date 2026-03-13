@@ -172,7 +172,7 @@ export async function discoverEvents(input: EventDiscoveryInput): Promise<EventD
   const today = new Date();
   const todayLabel = format(today, "MMMM d, yyyy");
   const city = input.city || area.split(",")[0]?.trim() || area;
-  const { object } = await generateObject({
+  const { object } = await generateObject({ mode: "json",
     model: getOpenAIModel(),
     schema: z.object({
       events: z.array(generatedEventSchema).min(3).max(input.limit ?? 6),
