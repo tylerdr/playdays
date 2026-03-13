@@ -5,12 +5,12 @@ import Link from "next/link";
 import { LoaderCircle, MapPin, Sparkles } from "lucide-react";
 import {
   DISCOVERY_CATEGORIES,
-  createDemoProfile,
+  type FamilyProfile,
   type DiscoverySource,
   type FamilyLocation,
   type LocalPlace,
 } from "@/lib/schemas";
-import { getProfile, savePinnedPlace, saveProfile, saveSavedItem } from "@/lib/storage";
+import { getProfile, savePinnedPlace, saveSavedItem } from "@/lib/storage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +47,11 @@ function getDiscoveryNote(source: DiscoverySource | null) {
   }
 }
 
-export function DiscoverBoard() {
+export function DiscoverBoard({
+  initialProfile = null,
+}: {
+  initialProfile?: FamilyProfile | null;
+}) {
   const [location, setLocation] = useState<FamilyLocation>({ zip: "", city: "", label: "" });
   const [selected, setSelected] = useState<string[]>(["parks", "libraries", "playgrounds"]);
   const [places, setPlaces] = useState<LocalPlace[]>([]);
@@ -57,14 +61,14 @@ export function DiscoverBoard() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const profile = getProfile();
+    const profile = initialProfile ?? getProfile();
     if (profile) {
       setLocation(profile.location);
       void runSearch(profile.location, selected);
     }
     // This syncs localStorage data once on mount for the saved family profile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialProfile]);
 
   async function runSearch(nextLocation = location, nextSelected = selected) {
     setLoading(true);
@@ -89,16 +93,8 @@ export function DiscoverBoard() {
     setSelected(next);
   }
 
-  function useDemoLocation() {
-    const demo = createDemoProfile();
-    saveProfile(demo);
-    setLocation(demo.location);
-    setMessage("Demo family location loaded.");
-    void runSearch(demo.location, selected);
-  }
-
-  function addToToday(place: LocalPlace) {
-    saveSavedItem({
+  async function addToToday(place: LocalPlace) {
+    const savedResult = await saveSavedItem({
       type: "place",
       title: place.name,
       subtitle:
@@ -109,8 +105,12 @@ export function DiscoverBoard() {
     });
 
     if (source === "google") {
-      savePinnedPlace(place);
-      setMessage(`${place.name} pinned as today's outing anchor.`);
+      const pinnedResult = await savePinnedPlace(place);
+      setMessage(
+        pinnedResult.persistence === "supabase"
+          ? `${place.name} pinned to your account as today's outing anchor.`
+          : `${place.name} pinned as today's outing anchor.`
+      );
       return;
     }
 
@@ -119,7 +119,11 @@ export function DiscoverBoard() {
       return;
     }
 
-    setMessage("Saved as a backup idea. Double-check the details before you head out.");
+    setMessage(
+      savedResult.persistence === "supabase"
+        ? "Saved to your account as a backup idea. Double-check the details before you head out."
+        : "Saved as a backup idea. Double-check the details before you head out."
+    );
   }
 
   return (
@@ -158,7 +162,7 @@ export function DiscoverBoard() {
                 {loading ? <LoaderCircle className="size-4 animate-spin" /> : <MapPin className="size-4" />}
                 Search nearby
               </Button>
-              <Button variant="outline" className="touch-safe rounded-2xl" onClick={useDemoLocation}>
+              <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => { const demo = { zip: "92660", city: "Newport Beach, CA", label: "Newport Beach, CA" }; setLocation(demo); void runSearch(demo); }}>
                 <Sparkles className="size-4" />
                 Use demo location
               </Button>
@@ -217,7 +221,7 @@ export function DiscoverBoard() {
                   ))}
                 </ul>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button className="touch-safe rounded-2xl" onClick={() => addToToday(place)}>
+                  <Button className="touch-safe rounded-2xl" onClick={() => void addToToday(place)}>
                     {source === "google"
                       ? "Pin for today's outing"
                       : source === "fallback"

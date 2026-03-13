@@ -26,17 +26,37 @@ import { Textarea } from "@/components/ui/textarea";
 
 const steps = ["Basics", "Kids", "Rhythm", "Materials"];
 
-function buildInitialProfile() {
-  const existing = getProfile();
-  return existing ?? createEmptyProfile();
+function buildInitialProfile(initialProfile: FamilyProfile | null, authUserEmail?: string | null) {
+  const existing = initialProfile ?? getProfile();
+  if (existing) {
+    return existing;
+  }
+
+  const emptyProfile = createEmptyProfile();
+  if (authUserEmail) {
+    emptyProfile.email = authUserEmail;
+  }
+  return emptyProfile;
 }
 
-export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
+export function ProfileForm({
+  mode,
+  initialProfile = null,
+  authUserEmail = null,
+}: {
+  mode: "onboard" | "settings";
+  initialProfile?: FamilyProfile | null;
+  authUserEmail?: string | null;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [hasExistingProfile, setHasExistingProfile] = useState(() => Boolean(getProfile()));
+  const [hasExistingProfile, setHasExistingProfile] = useState(
+    () => Boolean(initialProfile ?? getProfile())
+  );
   const [editing, setEditing] = useState(() => mode === "onboard");
-  const [profile, setProfile] = useState<FamilyProfile>(buildInitialProfile);
+  const [profile, setProfile] = useState<FamilyProfile>(() =>
+    buildInitialProfile(initialProfile, authUserEmail)
+  );
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +125,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
     updateProfile({ materials: Array.from(new Set(next)) });
   }
 
-  function save(modeAfterSave: "today" | "stay") {
+  async function save(modeAfterSave: "today" | "stay") {
     try {
       const parsed = familyProfileSchema.parse({
         ...profile,
@@ -115,12 +135,21 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
             profile.location.label ||
             [profile.location.city, profile.location.zip].filter(Boolean).join(", "),
         },
+        email: profile.email || authUserEmail || "",
       });
-      saveProfile(parsed);
-      setProfile(parsed);
+      const result = await saveProfile(parsed);
+      setProfile(result.profile);
       setHasExistingProfile(true);
       setError(null);
-      setStatus(mode === "onboard" ? "Profile saved. Building your day next." : "Settings saved.");
+      setStatus(
+        mode === "onboard"
+          ? result.persistence === "supabase"
+            ? "Profile saved to your account. Building your day next."
+            : "Profile saved on this device. Building your day next."
+          : result.persistence === "supabase"
+            ? "Settings saved to your account."
+            : "Settings saved on this device."
+      );
       if (modeAfterSave === "today") {
         router.push("/today");
         return;
@@ -257,7 +286,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                     notes: "A sleeping baby often changes the afternoon plan.",
                   });
                   setProfile(demo);
-                  setStatus("Demo family loaded.");
+                  setStatus("Demo family loaded into the form. Save when you want to use it.");
                   setError(null);
                 }}
               >

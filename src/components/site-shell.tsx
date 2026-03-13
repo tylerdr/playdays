@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, Sparkles } from "lucide-react";
-import { usePathname } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
+import { usePathname, useRouter } from "next/navigation";
 import { appNav, marketingNav } from "@/lib/site";
+import { createClientSupabaseClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -22,6 +25,75 @@ function NavButton({ href, label, active }: { href: string; label: string; activ
     <Button asChild variant={active ? "default" : "ghost"} className="touch-safe rounded-full px-4 text-sm">
       <Link href={href}>{label}</Link>
     </Button>
+  );
+}
+
+function AuthButtons({ compact }: { compact?: boolean }) {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClientSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    void supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleSignOut() {
+    const supabase = createClientSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    setBusy(true);
+    await supabase.auth.signOut();
+    setBusy(false);
+    router.replace("/");
+    router.refresh();
+  }
+
+  if (!hasSupabaseEnv()) {
+    return null;
+  }
+
+  if (!user) {
+    return (
+      <Button asChild className="touch-safe rounded-full px-5">
+        <Link href="/auth/login">Sign in</Link>
+      </Button>
+    );
+  }
+
+  return (
+    <div className={cn("flex items-center gap-2", compact ? "flex-col items-stretch" : "flex-wrap justify-end")}>
+      <span className="rounded-full border border-border/60 bg-white/80 px-3 py-2 text-sm text-muted-foreground">
+        {user.email ?? "Signed in"}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        className="touch-safe rounded-full px-5"
+        disabled={busy}
+        onClick={() => void handleSignOut()}
+      >
+        Sign out
+      </Button>
+    </div>
   );
 }
 
@@ -60,6 +132,7 @@ export function SiteShell({
                 <Button asChild variant="outline" className="touch-safe rounded-full px-5">
                   <Link href="/today">See demo day</Link>
                 </Button>
+                <AuthButtons />
               </>
             ) : (
               <>
@@ -71,6 +144,7 @@ export function SiteShell({
                     <Link href="/today">See demo day</Link>
                   </Button>
                 )}
+                <AuthButtons />
               </>
             )}
           </nav>
@@ -110,6 +184,7 @@ export function SiteShell({
                       <Link href="/today">See demo day</Link>
                     </Button>
                   ) : null}
+                  <AuthButtons compact />
                 </div>
               </SheetContent>
             </Sheet>

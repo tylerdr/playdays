@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
-import type { SupabaseClient } from "@supabase/supabase-js"
+import type { SupabaseClient, User } from "@supabase/supabase-js"
 
 export function hasSupabaseServerEnv() {
   return Boolean(
@@ -36,4 +36,17 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient | nul
       },
     }
   )
+}
+
+export async function getServerSupabaseUser(): Promise<User | null> {
+  const supabase = await createServerSupabaseClient()
+  if (!supabase) {
+    return null
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  return user
 }
