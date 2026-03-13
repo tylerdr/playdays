@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { getHistory, getSavedItems } from "@/lib/storage";
+import {
+  getHistory,
+  getSavedItems,
+  syncHistoryCache,
+  syncSavedItemsCache,
+} from "@/lib/storage";
 import type { HistoryEntry, SavedItem } from "@/lib/schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,9 +19,27 @@ function getMapsUrl(item: SavedItem) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export function HistoryBoard() {
-  const [history] = useState<HistoryEntry[]>(() => getHistory());
-  const [saved] = useState<SavedItem[]>(() => getSavedItems());
+export function HistoryBoard({
+  initialHistory = [],
+  initialSaved = [],
+}: {
+  initialHistory?: HistoryEntry[];
+  initialSaved?: SavedItem[];
+}) {
+  const [history] = useState<HistoryEntry[]>(() => {
+    if (initialHistory.length) {
+      syncHistoryCache(initialHistory);
+      return initialHistory;
+    }
+    return getHistory();
+  });
+  const [saved] = useState<SavedItem[]>(() => {
+    if (initialSaved.length) {
+      syncSavedItemsCache(initialSaved);
+      return initialSaved;
+    }
+    return getSavedItems();
+  });
 
   const summary = useMemo(() => {
     const thisMonthKey = format(new Date(), "yyyy-MM");

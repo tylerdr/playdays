@@ -9,6 +9,7 @@ import {
   type DailyPlan,
   type DiscoverySource,
   type FamilyProfile,
+  type HistoryEntry,
   type SavedItem,
 } from "@/lib/schemas";
 import {
@@ -21,13 +22,21 @@ import {
   saveCachedPlan,
   saveProfile,
   saveSavedItem,
+  syncHistoryCache,
+  syncPinnedPlaceCache,
+  syncProfileCache,
 } from "@/lib/storage";
 import { ActivityCard } from "@/components/activity-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-async function generatePlan(profile: FamilyProfile, replaceSlot?: ActivityCardType["slot"], excludedTitles: string[] = []) {
+async function generatePlan(
+  profile: FamilyProfile,
+  history: HistoryEntry[],
+  replaceSlot?: ActivityCardType["slot"],
+  excludedTitles: string[] = []
+) {
   const response = await fetch("/api/generate-daily", {
     method: "POST",
     headers: {
@@ -35,7 +44,7 @@ async function generatePlan(profile: FamilyProfile, replaceSlot?: ActivityCardTy
     },
     body: JSON.stringify({
       profile,
-      history: getHistory(),
+      history,
       replaceSlot,
       excludedTitles,
     }),
@@ -74,9 +83,23 @@ function getPinnedMapsUrl(item: SavedItem | null) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export function TodayBoard() {
-  const [profile, setProfile] = useState<FamilyProfile | null>(null);
+export function TodayBoard({
+  initialProfile = null,
+  initialHistory = [],
+  initialPinnedPlace = null,
+}: {
+  initialProfile?: FamilyProfile | null;
+  initialHistory?: HistoryEntry[];
+  initialPinnedPlace?: SavedItem | null;
+}) {
+  const [profile, setProfile] = useState<FamilyProfile | null>(() => initialProfile ?? getProfile());
   const [plan, setPlan] = useState<DailyPlan | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>(() =>
+    initialHistory.length ? initialHistory : getHistory()
+  );
+  const [pinnedPlace, setPinnedPlace] = useState<SavedItem | null>(
+    () => initialPinnedPlace ?? getPinnedPlace()
+  );
   const [loading, setLoading] = useState(false);
   const [busySlot, setBusySlot] = useState<ActivityCardType["slot"] | null>(null);
   const [source, setSource] = useState<string | null>(null);
@@ -84,13 +107,24 @@ export function TodayBoard() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const existingProfile = getProfile();
-    setProfile(existingProfile);
+    if (initialProfile) {
+      syncProfileCache(initialProfile);
+      setProfile(initialProfile);
+    }
+    if (initialHistory.length) {
+      syncHistoryCache(initialHistory);
+      setHistory(initialHistory);
+    }
+    if (initialPinnedPlace) {
+      syncPinnedPlaceCache(initialPinnedPlace);
+      setPinnedPlace(initialPinnedPlace);
+    }
+
     const cachedPlan = getCachedPlan();
     if (cachedPlan) {
       setPlan(cachedPlan);
     }
-  }, []);
+  }, [initialHistory, initialPinnedPlace, initialProfile]);
 
   const refreshDay = useCallback(async (nextProfile = profile) => {
     if (!nextProfile) {
@@ -102,7 +136,7 @@ export function TodayBoard() {
     setMessage(null);
 
     try {
-      const data = await generatePlan(nextProfile);
+      const data = await generatePlan(nextProfile, history);
       if (!data.plan) {
         throw new Error("Daily plan response was incomplete.");
       }
@@ -114,7 +148,7 @@ export function TodayBoard() {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [history, profile]);
 
   useEffect(() => {
     if (!profile || plan) {
@@ -124,7 +158,6 @@ export function TodayBoard() {
     void refreshDay(profile);
   }, [profile, plan, refreshDay]);
 
-  const pinnedPlace = getPinnedPlace();
   const discoveryMode = plan?.discoveryMode ?? (source as DiscoverySource | null);
   const discoveryFraming = getDiscoveryFraming(discoveryMode);
   const pinnedMapsUrl = getPinnedMapsUrl(pinnedPlace);
@@ -141,6 +174,7 @@ export function TodayBoard() {
     try {
       const response = await generatePlan(
         profile,
+        history,
         slot,
         plan.activities.map((activity) => activity.name),
       );
@@ -158,33 +192,38 @@ export function TodayBoard() {
     }
   }
 
-  function markAction(action: "done" | "skip" | "saved", activity: ActivityCardType) {
+  async function markAction(action: "done" | "skip" | "saved", activity: ActivityCardType) {
     if (action === "saved") {
-      saveSavedItem({
+      const result = await saveSavedItem({
         type: "activity",
         title: activity.name,
         subtitle: `${activity.slot} · ${activity.duration}`,
         payload: activity as unknown as Record<string, unknown>,
       });
-      setMessage(`${activity.name} saved for later.`);
+      setMessage(
+        result.persistence === "supabase"
+          ? `${activity.name} saved to your account.`
+          : `${activity.name} saved for later.`
+      );
       return;
     }
 
-    recordActivityAction({
+    const result = await recordActivityAction({
       action,
       slot: activity.slot,
       title: activity.name,
       payload: activity as unknown as Record<string, unknown>,
     });
+    setHistory(result.history);
     setMessage(action === "done" ? `${activity.name} marked done.` : `${activity.name} skipped.`);
   }
 
-  function loadDemoFamily() {
+  async function loadDemoFamily() {
     const demo = createDemoProfile();
-    saveProfile(demo);
+    await saveProfile(demo, { mode: "local-only" });
     setProfile(demo);
     setPlan(null);
-    setMessage("Demo family loaded.");
+    setMessage("Demo family loaded on this device only.");
   }
 
   if (!profile) {
@@ -200,7 +239,7 @@ export function TodayBoard() {
               <Button asChild className="touch-safe rounded-2xl px-6">
                 <Link href="/start-setup">Start setup</Link>
               </Button>
-              <Button variant="outline" className="touch-safe rounded-2xl" onClick={loadDemoFamily}>
+              <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => void loadDemoFamily()}>
                 <Sparkles className="mr-2 size-4" />
                 Use demo family
               </Button>
@@ -239,7 +278,7 @@ export function TodayBoard() {
               {loading ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               Refresh full day
             </Button>
-            <Button variant="outline" className="touch-safe rounded-2xl" onClick={loadDemoFamily}>
+            <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => void loadDemoFamily()}>
               <Sparkles className="size-4" />
               Demo family
             </Button>
@@ -335,11 +374,13 @@ export function TodayBoard() {
             key={activity.id}
             activity={activity}
             busy={busySlot === activity.slot}
-            onDone={() => markAction("done", activity)}
-            onSave={() => markAction("saved", activity)}
+            onDone={() => void markAction("done", activity)}
+            onSave={() => void markAction("saved", activity)}
             onSkip={() => {
-              markAction("skip", activity);
-              void replaceSlot(activity.slot);
+              void (async () => {
+                await markAction("skip", activity);
+                await replaceSlot(activity.slot);
+              })();
             }}
           />
         ))}

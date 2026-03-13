@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { slotMeta } from "@/lib/site";
+import { createServerSupabaseClient, hasSupabaseServerEnv } from "@/lib/supabase/server";
 
 const highlights = [
   {
@@ -29,7 +30,26 @@ const highlights = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createServerSupabaseClient();
+  const authEnabled = hasSupabaseServerEnv();
+  const {
+    data: { user },
+  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+
+  const primaryHref = user
+    ? "/today"
+    : authEnabled
+      ? "/auth/login?next=%2Fstart-setup"
+      : "/start-setup";
+  const primaryLabel = user
+    ? "Open today"
+    : authEnabled
+      ? "Sign in to start"
+      : "Set up my family";
+  const secondaryHref = user ? "/history" : "/today";
+  const secondaryLabel = user ? "Open history" : "See demo day";
+
   return (
     <SiteShell variant="marketing">
       <section className="page-shell relative overflow-hidden py-12 sm:py-16 lg:py-20">
@@ -45,10 +65,10 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="touch-safe rounded-full px-7">
-                <Link href="/start-setup">Set up my family</Link>
+                <Link href={primaryHref}>{primaryLabel}</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="touch-safe rounded-full px-7">
-                <Link href="/today">See demo day</Link>
+                <Link href={secondaryHref}>{secondaryLabel}</Link>
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
