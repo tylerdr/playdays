@@ -13,7 +13,7 @@ import {
   historyEntrySchema,
 } from "@/lib/schemas";
 import { getAuthenticatedFamilyContext } from "@/lib/server/family-context";
-import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
+import { getChatModel, hasAIKey } from "@/lib/server/ai";
 import { discoverPlaces } from "@/lib/server/discovery";
 import { buildChatSystemPrompt, buildContextualChatSystemPrompt } from "@/lib/server/plan";
 import { getWeather } from "@/lib/server/weather";
@@ -43,6 +43,15 @@ function buildGenericChatSystemPrompt() {
     "The user has not finished setup, so do not pretend to know their kids, location, or schedule.",
     "Answer with practical, low-friction options and keep the tone calm and useful.",
     "When personalization would help, invite them to finish setup without blocking the answer.",
+  ].join("\n");
+}
+
+function buildMarkdownResponseInstruction() {
+  return [
+    "Format every response in structured markdown.",
+    "Start with a short heading or bold lead-in, then use concise bullets or numbered steps.",
+    "Keep paragraphs short and scannable on mobile.",
+    "When suggesting options, clearly label them and end with one practical next move.",
   ].join("\n");
 }
 
@@ -180,68 +189,70 @@ function createFallbackResponse(messages: UIMessage[], text: string) {
   });
 }
 
-export async function POST(request: Request) {
-  let body: ChatBody;
+export function createPlayDaysChatRoute() {
+  return async function POST(request: Request) {
+    let body: ChatBody;
 
-  try {
-    body = (await request.json()) as ChatBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
+    try {
+      body = (await request.json()) as ChatBody;
+    } catch {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
 
-  if (!Array.isArray(body.messages)) {
-    return NextResponse.json({ error: "Expected a messages array." }, { status: 400 });
-  }
+    if (!Array.isArray(body.messages)) {
+      return NextResponse.json({ error: "Expected a messages array." }, { status: 400 });
+    }
 
-  const parsedProfile = body.profile ? familyProfileSchema.safeParse(body.profile) : null;
-  const parsedHistory = body.history ? historyEntrySchema.array().safeParse(body.history) : null;
-  const serverContext = await getAuthenticatedFamilyContext();
-  const localProfile = parsedProfile?.success ? parsedProfile.data : null;
-  const localHistory = parsedHistory?.success ? parsedHistory.data : [];
-  const profile = serverContext.profile ?? localProfile;
-  const history = serverContext.profile ? serverContext.history : localHistory;
-  const savedEvents = serverContext.profile ? serverContext.savedEvents : [];
-  const customSources = serverContext.profile ? serverContext.customSources : [];
-  const upcomingEvents = serverContext.profile ? serverContext.upcomingEvents : [];
-  const lastUserText = readLastUserText(body.messages);
-
-  if (!hasOpenAIKey()) {
-    const fallback = await buildFallbackReply(lastUserText, profile, history, {
+    const parsedProfile = body.profile ? familyProfileSchema.safeParse(body.profile) : null;
+    const parsedHistory = body.history ? historyEntrySchema.array().safeParse(body.history) : null;
+    const serverContext = await getAuthenticatedFamilyContext();
+    const localProfile = parsedProfile?.success ? parsedProfile.data : null;
+    const localHistory = parsedHistory?.success ? parsedHistory.data : [];
+    const profile = serverContext.profile ?? localProfile;
+    const history = serverContext.profile ? serverContext.history : localHistory;
+    const savedEvents = serverContext.profile ? serverContext.savedEvents : [];
+    const customSources = serverContext.profile ? serverContext.customSources : [];
+    const upcomingEvents = serverContext.profile ? serverContext.upcomingEvents : [];
+    const lastUserText = readLastUserText(body.messages);
+    const fallbackOptions = {
       savedEvents: savedEvents.map((event) => event.title),
       customSources: customSources.map((source) => source.name),
       upcomingEvents: upcomingEvents.map((event) => event.title),
-    });
-    return createFallbackResponse(body.messages, fallback);
-  }
+    };
 
-  try {
-    const system = profile
-      ? serverContext.profile
-        ? await buildContextualChatSystemPrompt({
-            profile,
-            history,
-            savedEvents,
-            customSources,
-            upcomingEvents,
-          })
-        : await buildChatSystemPrompt(profile, history)
-      : buildGenericChatSystemPrompt();
+    if (!hasAIKey()) {
+      const fallback = await buildFallbackReply(lastUserText, profile, history, fallbackOptions);
+      return createFallbackResponse(body.messages, fallback);
+    }
 
-    const result = streamText({
-      model: getOpenAIModel(),
-      system,
-      messages: await convertToModelMessages(body.messages),
-    });
+    try {
+      const baseSystem = profile
+        ? serverContext.profile
+          ? await buildContextualChatSystemPrompt({
+              profile,
+              history,
+              savedEvents,
+              customSources,
+              upcomingEvents,
+            })
+          : await buildChatSystemPrompt(profile, history)
+        : buildGenericChatSystemPrompt();
+      const system = [baseSystem, buildMarkdownResponseInstruction()].join("\n");
 
-    return result.toUIMessageStreamResponse({
-      originalMessages: body.messages,
-    });
-  } catch {
-    const fallback = await buildFallbackReply(lastUserText, profile, history, {
-      savedEvents: savedEvents.map((event) => event.title),
-      customSources: customSources.map((source) => source.name),
-      upcomingEvents: upcomingEvents.map((event) => event.title),
-    });
-    return createFallbackResponse(body.messages, fallback);
-  }
+      const result = streamText({
+        model: getChatModel(),
+        system,
+        messages: await convertToModelMessages(body.messages),
+      });
+
+      return result.toUIMessageStreamResponse({
+        originalMessages: body.messages,
+      });
+    } catch {
+      const fallback = await buildFallbackReply(lastUserText, profile, history, fallbackOptions);
+      return createFallbackResponse(body.messages, fallback);
+    }
+  };
 }
+
+export const POST = createPlayDaysChatRoute();

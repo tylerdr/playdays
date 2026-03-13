@@ -1,7 +1,7 @@
 import { SiteShell } from "@/components/site-shell";
 import { ChatAssistant } from "@/components/chat-assistant";
 import { getAuthenticatedFamilyContext } from "@/lib/server/family-context";
-import { hasOpenAIKey } from "@/lib/server/ai";
+import { hasAIKey } from "@/lib/server/ai";
 
 export default async function ChatPage() {
   const context = await getAuthenticatedFamilyContext();
@@ -9,7 +9,7 @@ export default async function ChatPage() {
   return (
     <SiteShell>
       <ChatAssistant
-        liveAssistantEnabled={hasOpenAIKey()}
+        liveAssistantEnabled={hasAIKey()}
         serverContext={{
           authMode: context.authMode,
           userEmail: context.user?.email ?? null,

@@ -2,13 +2,26 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import {
   DISCOVERY_CATEGORIES,
-  localPlaceSchema,
   type DiscoverySource,
   type FamilyLocation,
   type LocalPlace,
 } from "@/lib/schemas";
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 import { getLocationLabel, resolveLocation } from "@/lib/server/location";
+
+const aiPlaceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  distanceMiles: z.number().min(0),
+  rating: z.number().min(0).max(5).nullable(),
+  hours: z.string(),
+  address: z.string(),
+  kidFriendly: z.boolean(),
+  todayEvent: z.string().nullable(),
+  reasons: z.array(z.string()),
+  mapsUrl: z.string(),
+});
 
 export interface DiscoveryResult {
   places: LocalPlace[];
@@ -146,7 +159,7 @@ async function generateAiPlaces(location: FamilyLocation, categories: string[]) 
   const { object } = await generateObject({
     model: getOpenAIModel(),
     schema: z.object({
-      places: z.array(localPlaceSchema).min(5).max(8),
+      places: z.array(aiPlaceSchema).min(5).max(8),
     }),
     system:
       "You help parents find genuinely plausible kid-friendly outings. Keep names and formats realistic. Prefer real or highly plausible places a parent would recognize in that city. Do not invent impossible distances or strange formatting.",

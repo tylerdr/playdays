@@ -3,7 +3,6 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import {
   SLOT_ORDER,
-  activityCardSchema,
   createDemoProfile,
   napTrapSuggestionSchema,
   type ScheduleBlock,
@@ -22,6 +21,22 @@ import type {
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 import { discoverPlaces } from "@/lib/server/discovery";
 import { getWeather } from "@/lib/server/weather";
+
+const aiActivityCardSchema = z.object({
+  id: z.string(),
+  slot: z.enum(SLOT_ORDER),
+  name: z.string(),
+  emoji: z.string(),
+  summary: z.string(),
+  ageRange: z.string(),
+  duration: z.string(),
+  bestTime: z.string(),
+  materials: z.array(z.string()),
+  benefits: z.array(z.string()),
+  whyItFits: z.string(),
+  steps: z.array(z.string()).min(2).max(6),
+  backupPlan: z.string(),
+});
 
 function todayKey() {
   return format(new Date(), "yyyy-MM-dd");
@@ -369,7 +384,7 @@ async function generateActivitiesWithAi(profile: FamilyProfile, history: History
     schema: z.object({
       headline: z.string(),
       encouragement: z.string(),
-      activities: z.array(activityCardSchema.partial()).length(5),
+      activities: z.array(aiActivityCardSchema).length(5),
       napTrap: z.array(napTrapSuggestionSchema).min(3).max(5),
     }),
     system:
@@ -402,7 +417,7 @@ async function generateReplacementWithAi(
   const { object } = await generateObject({
     model: getOpenAIModel(),
     schema: z.object({
-      activity: activityCardSchema.partial(),
+      activity: aiActivityCardSchema,
     }),
     system: "You create one replacement family activity card that feels fresh, concrete, and realistic for today.",
     prompt: `Replace slot: ${slot}
