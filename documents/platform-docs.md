@@ -9,9 +9,11 @@ PlayDays is a mobile-first family planning app for busy parents. The MVP promise
 - `/onboard` — compatibility redirect to `/start-setup`
 - `/today` — main app surface; generates the daily plan and shows timeline, weather, discovery picks, and nap-trap ideas
 - `/discover` — local place search and outing-anchor flow with honest fallback framing
+- `/events` — shared local-events feed with honest empty states plus recurring-program section
 - `/chat` — assistant surface with saved-family, example-family, and generic fallback states
 - `/history` — saved items and lightweight usage history
-- `/settings` — settings summary plus optional full profile editing flow
+- `/profile` — unified profile hub for family basics, schedule prefs, activity prefs, saved event lists, and recurring programs
+- `/settings` — redirect to `/profile`
 
 ## Core user flows
 ### 1. First-use setup
@@ -44,9 +46,18 @@ PlayDays is a mobile-first family planning app for busy parents. The MVP promise
 3. Chat uses saved family context when available, or stays generic / explicit-example-mode when setup is missing
 4. If OpenAI is unavailable, the route streams deterministic backup guidance instead of failing
 
+### 6. Events and recurring programs
+1. Parent opens `/events`
+2. Client reads local profile + preferences for filters and recurring programs
+3. Server returns rows from the shared `events` table when Supabase is configured; otherwise the page stays empty with explicit messaging
+4. Parent saves events to on-device lists and manages recurring sources from `/profile`
+
 ## Server endpoints
 - `POST /api/generate-daily` — returns daily plan or slot replacement
 - `POST /api/discover` — returns nearby kid-friendly places
+- `GET /api/events` — returns shared events or a clear unavailable state
+- `POST /api/events` — reserved save/unsave contract; currently points clients back to local-device persistence
+- `POST /api/events/discover` — triggers shared event discovery when server wiring is present
 - `POST /api/chat` — returns streaming chat answers
 - `POST /api/email/daily-digest` — digest endpoint intended for cron/email use
 
@@ -55,8 +66,12 @@ PlayDays is a mobile-first family planning app for busy parents. The MVP promise
 - Daily plan cache: localStorage, date-keyed
 - History: localStorage
 - Saved items: localStorage
+- Schedule preferences: localStorage
+- Activity preferences: localStorage
+- Saved event lists: localStorage
+- Custom recurring sources: localStorage
 - Pinned place: localStorage
-- Supabase schema exists but is not yet the default runtime path
+- Supabase shared tables exist for events/discovery and are optional runtime inputs when configured
 
 ## Current product state assumptions
 - There is no fully shipped auth/account system yet

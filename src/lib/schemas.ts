@@ -39,6 +39,17 @@ export const familyPreferencesSchema = z.object({
   digestEnabled: z.boolean().default(true),
 });
 
+export const dayOfWeekSchema = z.enum([
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+]);
+export type DayOfWeek = z.infer<typeof dayOfWeekSchema>;
+
 export const familyProfileSchema = z.object({
   parentName: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
@@ -50,6 +61,32 @@ export const familyProfileSchema = z.object({
   notes: z.string().optional().default(""),
 });
 export type FamilyProfile = z.infer<typeof familyProfileSchema>;
+
+export const schedulePrefsBudgetSchema = z.enum(["free", "moderate", "flexible"]);
+export type SchedulePrefsBudget = z.infer<typeof schedulePrefsBudgetSchema>;
+
+export const schedulePrefsSchema = z.object({
+  freeDays: z.array(dayOfWeekSchema).default(["saturday", "sunday"]),
+  morningFree: z.boolean().default(true),
+  afternoonFree: z.boolean().default(true),
+  eveningFree: z.boolean().default(false),
+  maxDriveMinutes: z.number().min(5).max(180).default(30),
+  napStart: z.string().default("12:30"),
+  napEnd: z.string().default("14:30"),
+  budget: schedulePrefsBudgetSchema.default("moderate"),
+});
+export type SchedulePrefs = z.infer<typeof schedulePrefsSchema>;
+
+export const activityPrefsIndoorOutdoorSchema = z.enum(["indoor", "outdoor", "both"]);
+export const activityPrefsEnergySchema = z.enum(["low", "medium", "high"]);
+
+export const activityPrefsSchema = z.object({
+  types: z.array(z.string()).default(["outdoor", "art", "sensory"]),
+  settings: z.array(z.string()).default(["parks", "libraries", "classes"]),
+  indoorOutdoor: activityPrefsIndoorOutdoorSchema.default("both"),
+  energyLevel: activityPrefsEnergySchema.default("medium"),
+});
+export type ActivityPrefs = z.infer<typeof activityPrefsSchema>;
 
 export const localPlaceSchema = z.object({
   id: z.string(),
@@ -68,6 +105,74 @@ export type LocalPlace = z.infer<typeof localPlaceSchema>;
 
 export const discoverySourceSchema = z.enum(["google", "ai", "fallback"]);
 export type DiscoverySource = z.infer<typeof discoverySourceSchema>;
+
+export const eventCostTypeSchema = z.enum(["free", "paid", "unknown"]);
+export type EventCostType = z.infer<typeof eventCostTypeSchema>;
+
+export const eventSourceSchema = z.enum(["ai", "manual", "user"]);
+export type EventSource = z.infer<typeof eventSourceSchema>;
+
+export const eventConfidenceSchema = z.enum(["high", "medium", "low"]);
+export type EventConfidence = z.infer<typeof eventConfidenceSchema>;
+
+export const eventSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1),
+  description: z.string().optional().default(""),
+  url: z.string().url().optional().or(z.literal("")).default(""),
+  imageUrl: z.string().url().optional().or(z.literal("")).default(""),
+  locationName: z.string().optional().default(""),
+  locationAddress: z.string().optional().default(""),
+  city: z.string().min(1),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
+  startDate: z.string().optional().default(""),
+  endDate: z.string().optional().default(""),
+  startTime: z.string().optional().default(""),
+  endTime: z.string().optional().default(""),
+  recurring: z.string().optional().default(""),
+  ageMin: z.number().min(0).max(18).default(0),
+  ageMax: z.number().min(0).max(18).default(18),
+  costType: eventCostTypeSchema.default("unknown"),
+  costAmount: z.number().nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  source: eventSourceSchema.default("ai"),
+  confidence: eventConfidenceSchema.default("low"),
+  isVerified: z.boolean().default(false),
+  discoveryArea: z.string().default(""),
+  createdAt: z.string().default(""),
+  expiresAt: z.string().optional().default(""),
+});
+export type Event = z.infer<typeof eventSchema>;
+
+export const eventListNameSchema = z.enum(["saved", "want_to_try", "done"]);
+export type EventListName = z.infer<typeof eventListNameSchema>;
+
+export const savedEventSchema = z.object({
+  id: z.string(),
+  eventId: z.string().nullable().optional(),
+  eventSnapshot: eventSchema.nullable().optional(),
+  customEvent: eventSchema.nullable().optional(),
+  listName: eventListNameSchema.default("saved"),
+  notes: z.string().default(""),
+  createdAt: z.string(),
+});
+export type SavedEvent = z.infer<typeof savedEventSchema>;
+
+export const customSourceSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  locationName: z.string().default(""),
+  locationAddress: z.string().default(""),
+  dayOfWeek: z.union([dayOfWeekSchema, z.literal("")]).default(""),
+  startTime: z.string().default(""),
+  endTime: z.string().default(""),
+  recurrenceText: z.string().default(""),
+  notes: z.string().default(""),
+  isActive: z.boolean().default(true),
+  createdAt: z.string(),
+});
+export type CustomSource = z.infer<typeof customSourceSchema>;
 
 export const activityCardSchema = z.object({
   id: z.string(),
@@ -179,6 +284,40 @@ export const DISCOVERY_CATEGORIES = [
   "zoos",
 ] as const;
 
+export const SCHEDULE_FREE_DAY_OPTIONS = dayOfWeekSchema.options;
+
+export const ACTIVITY_TYPE_OPTIONS = [
+  "outdoor",
+  "art",
+  "sensory",
+  "educational",
+  "music",
+  "movement",
+  "water play",
+  "community",
+] as const;
+
+export const ACTIVITY_SETTING_OPTIONS = [
+  "parks",
+  "libraries",
+  "museums",
+  "classes",
+  "indoor play",
+  "nature",
+  "community events",
+] as const;
+
+export const EVENT_TAG_OPTIONS = [
+  "outdoor",
+  "indoor",
+  "class",
+  "storytime",
+  "craft",
+  "music",
+  "seasonal",
+  "free",
+] as const;
+
 export const SLOT_ORDER: ActivitySlot[] = ["outdoor", "indoor", "adventure", "calm", "together"];
 
 export function createEmptyProfile(): FamilyProfile {
@@ -262,5 +401,41 @@ export function createDemoProfile(): FamilyProfile {
     },
     materials: ["Paint", "Craft supplies", "Bikes", "Books", "Bubbles", "Play-doh"],
     notes: "One parent often has a sleeping baby in the carrier during the afternoon.",
+  };
+}
+
+export function createDefaultSchedulePrefs(profile?: FamilyProfile | null): SchedulePrefs {
+  return {
+    freeDays: ["saturday", "sunday"],
+    morningFree: true,
+    afternoonFree: true,
+    eveningFree: false,
+    maxDriveMinutes: 30,
+    napStart: profile?.schedule.nap1Start || "12:30",
+    napEnd: profile?.schedule.nap1End || "14:30",
+    budget: "moderate",
+  };
+}
+
+export function createDefaultActivityPrefs(profile?: FamilyProfile | null): ActivityPrefs {
+  const indoorOutdoor =
+    profile?.preferences.indoorOutdoorPreference === "mostly-indoor"
+      ? "indoor"
+      : profile?.preferences.indoorOutdoorPreference === "mostly-outdoor"
+        ? "outdoor"
+        : "both";
+
+  const energyLevel =
+    (profile?.preferences.energyLevelToday ?? 3) <= 2
+      ? "low"
+      : (profile?.preferences.energyLevelToday ?? 3) >= 4
+        ? "high"
+        : "medium";
+
+  return {
+    types: ["outdoor", "art", "sensory"],
+    settings: ["parks", "libraries", "classes"],
+    indoorOutdoor,
+    energyLevel,
   };
 }

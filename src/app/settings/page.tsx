@@ -1,10 +1,5 @@
-import { SiteShell } from "@/components/site-shell";
-import { ProfileForm } from "@/components/profile-form";
+import { redirect } from "next/navigation";
 
 export default function SettingsPage() {
-  return (
-    <SiteShell>
-      <ProfileForm mode="settings" />
-    </SiteShell>
-  );
+  redirect("/profile");
 }

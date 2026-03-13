@@ -31,7 +31,7 @@ function buildInitialProfile() {
   return existing ?? createEmptyProfile();
 }
 
-export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
+export function ProfileForm({ mode }: { mode: "onboard" | "profile" }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [hasExistingProfile, setHasExistingProfile] = useState(() => Boolean(getProfile()));
@@ -45,12 +45,12 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
       ? "Build your first calmer day"
       : editing
         ? "Edit family details"
-        : "Family settings";
+        : "Family profile";
   const description =
     mode === "onboard"
       ? "Takes about two minutes. Just enough to shape your first weather-smart plan."
       : editing
-        ? "Update the details that shape your plan, discovery, and chat context."
+        ? "Update the details that shape your plan, discovery, events, and chat context."
         : "Review what PlayDays knows about your family, then make quick edits only when something changes.";
 
   const progress = useMemo(() => ((step + 1) / steps.length) * 100, [step]);
@@ -120,12 +120,12 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
       setProfile(parsed);
       setHasExistingProfile(true);
       setError(null);
-      setStatus(mode === "onboard" ? "Profile saved. Building your day next." : "Settings saved.");
+      setStatus(mode === "onboard" ? "Profile saved. Building your day next." : "Profile saved.");
       if (modeAfterSave === "today") {
         router.push("/today");
         return;
       }
-      if (mode === "settings") {
+      if (mode === "profile") {
         setEditing(false);
       }
     } catch (caughtError) {
@@ -140,17 +140,17 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
         ? profile.kids.every((kid) => kid.name.trim().length > 0)
         : true;
 
-  if (mode === "settings" && !hasExistingProfile) {
+  if (mode === "profile" && !hasExistingProfile) {
     return (
       <div className="page-shell py-10 sm:py-14">
         <Card className="card-soft mx-auto max-w-3xl border-border/60">
           <CardHeader>
             <Badge variant="outline" className="w-fit rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-primary">
-              Settings
+              Profile
             </Badge>
-            <CardTitle className="text-4xl text-balance">Finish setup before you use settings.</CardTitle>
+            <CardTitle className="text-4xl text-balance">Finish setup before you use your profile.</CardTitle>
             <CardDescription className="text-base leading-7">
-              Settings are for maintaining a saved family profile. Start setup first, or open the demo day if you just want to look around.
+              Your profile is for maintaining a saved family setup. Start setup first, or open the demo day if you just want to look around.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 sm:flex-row">
@@ -221,7 +221,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
             )}
             <div className="rounded-[1.25rem] border border-border/60 bg-white/70 p-4 text-sm leading-7 text-muted-foreground">
               <p className="font-medium text-foreground">
-                {mode === "onboard" ? "How this personalizes your first plan" : "What these settings shape"}
+                {mode === "onboard" ? "How this personalizes your first plan" : "What this profile shapes"}
               </p>
               <p>
                 Weather fit, activity difficulty, one-handed options, local outing picks, and the tone of chat guidance.
@@ -270,7 +270,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
 
         <Card className="card-soft border-border/60">
           <CardContent className="space-y-8 pt-6">
-            {mode === "settings" && !editing ? (
+            {mode === "profile" && !editing ? (
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
@@ -279,7 +279,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                       {profile.location.label || [profile.location.city, profile.location.zip].filter(Boolean).join(", ")}
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Used for weather, nearby outings, and calmer same-day pivots.
+                      Used for weather, nearby outings, event filtering, and calmer same-day pivots.
                     </p>
                   </div>
                   <div className="rounded-[1.5rem] border border-border/60 bg-white/75 p-5">
@@ -310,7 +310,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                   </div>
                 </div>
                 <div className="rounded-[1.5rem] border border-border/60 bg-white/80 p-5 text-sm leading-7 text-muted-foreground">
-                  Settings keep your saved family profile current. History and saved items still live on this device.
+                  Profile basics stay on this device right now, alongside your history and saved items.
                 </div>
                 {error ? <p className="text-sm text-destructive">{error}</p> : null}
                 {status ? <p className="text-sm text-primary">{status}</p> : null}
@@ -319,13 +319,13 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                     Edit family details
                   </Button>
                   <Button asChild variant="outline" className="touch-safe rounded-2xl">
-                    <Link href="/today">Open today</Link>
+                    <Link href="/events">Open events</Link>
                   </Button>
                 </div>
               </div>
             ) : null}
 
-            {mode === "settings" && !editing ? null : (
+            {mode === "profile" && !editing ? null : (
               <>
             {step === 0 ? (
               <div className="grid gap-6 md:grid-cols-2">
@@ -685,7 +685,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                 Back
               </Button>
               <div className="flex flex-col gap-3 sm:flex-row">
-                {mode === "settings" ? (
+                {mode === "profile" ? (
                   <Button type="button" variant="ghost" className="touch-safe rounded-2xl" onClick={() => setEditing(false)}>
                     Cancel
                   </Button>
@@ -701,7 +701,7 @@ export function ProfileForm({ mode }: { mode: "onboard" | "settings" }) {
                   </Button>
                 ) : (
                   <Button type="button" className="touch-safe rounded-2xl px-6" onClick={() => save(mode === "onboard" ? "today" : "stay")}>
-                    {mode === "onboard" ? "Save and build today" : "Save settings"}
+                    {mode === "onboard" ? "Save and build today" : "Save profile"}
                   </Button>
                 )}
               </div>

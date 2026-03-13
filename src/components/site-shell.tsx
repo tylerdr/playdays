@@ -17,6 +17,18 @@ import { cn } from "@/lib/utils";
 
 type SiteShellVariant = "marketing" | "setup" | "app";
 
+function isActivePath(pathname: string, href: string) {
+  if (pathname === href) {
+    return true;
+  }
+
+  if (href === "/profile" && pathname === "/settings") {
+    return true;
+  }
+
+  return href !== "/" && pathname.startsWith(`${href}/`);
+}
+
 function NavButton({ href, label, active }: { href: string; label: string; active: boolean }) {
   return (
     <Button asChild variant={active ? "default" : "ghost"} className="touch-safe rounded-full px-4 text-sm">
@@ -64,7 +76,7 @@ export function SiteShell({
             ) : (
               <>
                 {navItems.map((item) => (
-                  <NavButton key={item.href} href={item.href} label={item.label} active={pathname === item.href} />
+                  <NavButton key={item.href} href={item.href} label={item.label} active={isActivePath(pathname, item.href)} />
                 ))}
                 {isAppShell ? null : (
                   <Button asChild className="touch-safe rounded-full px-5">
@@ -103,7 +115,7 @@ export function SiteShell({
                 </SheetHeader>
                 <div className="grid gap-2 px-4 pb-6">
                   {navItems.map((item) => (
-                    <NavButton key={item.href} href={item.href} label={item.label} active={pathname === item.href} />
+                    <NavButton key={item.href} href={item.href} label={item.label} active={isActivePath(pathname, item.href)} />
                   ))}
                   {!isAppShell ? (
                     <Button asChild className="touch-safe rounded-full px-5">
@@ -150,15 +162,15 @@ export function SiteShell({
 
       {isAppShell ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur-xl md:hidden">
-          <div className="grid grid-cols-5 gap-1 px-2 py-2">
+          <div className="grid grid-cols-3 gap-1 px-2 py-2">
             {appNav.map((item) => (
               <Button
                 key={item.href}
                 asChild
-                variant={pathname === item.href ? "default" : "ghost"}
+                variant={isActivePath(pathname, item.href) ? "default" : "ghost"}
                 className={cn(
                   "touch-safe rounded-2xl px-1 text-xs",
-                  pathname === item.href ? "shadow-lg shadow-primary/15" : "",
+                  isActivePath(pathname, item.href) ? "shadow-lg shadow-primary/15" : "",
                 )}
               >
                 <Link href={item.href}>{item.label}</Link>
