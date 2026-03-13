@@ -17,7 +17,7 @@ function getSafeNextPath(request: NextRequest) {
   return nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/today";
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);
 
   if (!hasSupabaseMiddlewareEnv()) {

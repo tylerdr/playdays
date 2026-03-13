@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { createEmptyProfile, familyProfileSchema, MATERIAL_OPTIONS, type FamilyProfile } from "@/lib/schemas";
@@ -26,10 +26,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 const steps = ["Basics", "Kids", "Rhythm", "Materials"];
 
+function subscribeToClientHydration() {
+  return () => {};
+}
+
 function buildInitialProfile(initialProfile: FamilyProfile | null, authUserEmail?: string | null) {
-  const existing = initialProfile ?? getProfile();
-  if (existing) {
-    return existing;
+  if (initialProfile) {
+    return initialProfile;
   }
 
   const emptyProfile = createEmptyProfile();
@@ -49,16 +52,35 @@ export function ProfileForm({
   authUserEmail?: string | null;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [hasExistingProfile, setHasExistingProfile] = useState(
-    () => Boolean(initialProfile ?? getProfile())
+  const isHydrated = useSyncExternalStore(
+    subscribeToClientHydration,
+    () => true,
+    () => false,
   );
+  const [step, setStep] = useState(0);
+  const [hasExistingProfile, setHasExistingProfile] = useState(() => Boolean(initialProfile));
   const [editing, setEditing] = useState(() => mode === "onboard");
   const [profile, setProfile] = useState<FamilyProfile>(() =>
     buildInitialProfile(initialProfile, authUserEmail)
   );
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialProfile) {
+      return;
+    }
+
+    const cachedProfile = getProfile();
+    if (!cachedProfile) {
+      return;
+    }
+
+    startTransition(() => {
+      setProfile(cachedProfile);
+      setHasExistingProfile(true);
+    });
+  }, [initialProfile]);
 
   const title =
     mode === "onboard"
@@ -168,6 +190,24 @@ export function ProfileForm({
       : step === 1
         ? profile.kids.every((kid) => kid.name.trim().length > 0)
         : true;
+
+  if (mode === "profile" && !initialProfile && !isHydrated) {
+    return (
+      <div className="page-shell py-10 sm:py-14">
+        <Card className="card-soft mx-auto max-w-3xl border-border/60">
+          <CardHeader>
+            <Badge variant="outline" className="w-fit rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-primary">
+              Profile
+            </Badge>
+            <CardTitle className="text-4xl text-balance">Checking your saved family profile.</CardTitle>
+            <CardDescription className="text-base leading-7">
+              PlayDays is loading any family details saved in this browser before it decides whether to show your profile or setup guidance.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (mode === "profile" && !hasExistingProfile) {
     return (
@@ -708,7 +748,7 @@ export function ProfileForm({
                 type="button"
                 variant="outline"
                 className="touch-safe rounded-2xl"
-                disabled={step === 0}
+                disabled={step === 0 ? true : undefined}
                 onClick={() => setStep((current) => Math.max(0, current - 1))}
               >
                 Back
@@ -723,7 +763,7 @@ export function ProfileForm({
                   <Button
                     type="button"
                     className="touch-safe rounded-2xl px-6"
-                    disabled={!canAdvance}
+                    disabled={canAdvance ? undefined : true}
                     onClick={() => setStep((current) => Math.min(steps.length - 1, current + 1))}
                   >
                     Next

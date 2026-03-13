@@ -145,8 +145,8 @@ Two small remaining bugs found during testing.
 | Setup copy jargon | ✅ Fixed |
 | History overpromising learning | ✅ Fixed (honest "on-device" framing) |
 | Source state leaking in UI | ✅ Fixed |
-| Hydration mismatch on ProfileForm | ⚠️ Remaining (BUG-1) |
-| Middleware deprecation | ⚠️ Remaining (BUG-2) |
+| Hydration mismatch on ProfileForm | ✅ Fixed (BUG-1) |
+| Middleware deprecation | ✅ Fixed (BUG-2) |
 | New: events feed | ✅ Shipped, honest empty state |
 | New: profile hub | ✅ Shipped, tabbed, honest persistence note |
 | New: auth foundation | ✅ Shipped, graceful when unconfigured |

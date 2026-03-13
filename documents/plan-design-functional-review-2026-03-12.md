@@ -135,6 +135,14 @@ There appears to be no fully shipped auth wall yet. For this review, “logged-i
 - `npm run typecheck` passed after rerunning with write access because TypeScript needed to emit `tsconfig.tsbuildinfo`.
 - `npm run build` passed.
 
+## Scope / assumptions update — 2026-03-13 post-fix bug pass
+- This pass is limited to the two remaining post-visual-test bugs recorded in `documents/test-results-2026-03-13.md`: the ProfileForm hydration mismatch and the Next.js 16 middleware-to-proxy deprecation warning.
+- The goal is to preserve current behavior while removing the warning surfaces, then rerun `typecheck`, `lint`, and `build` and commit only those focused fixes.
+
+## Post-fix bug pass notes — 2026-03-13
+- `ProfileForm` should not read browser-only profile state during the server render path. Browser cache hydration should happen after mount so server and first client render stay aligned.
+- The Next.js request interception entrypoint should move from `src/middleware.ts` to `src/proxy.ts` without changing the Supabase session-copying or path matcher behavior.
+
 ## Things to avoid touching unless clearly required
 - Supabase schema/migrations
 - unrelated deployment config
