@@ -15,6 +15,10 @@ import {
   type HistoryEntry,
   type LocalPlace,
 } from "@/lib/server/plan-types";
+import type {
+  CustomSourceSummary,
+  FamilyEventSummary,
+} from "@/lib/server/family-context";
 import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 import { discoverPlaces } from "@/lib/server/discovery";
 import { getWeather } from "@/lib/server/weather";
@@ -475,6 +479,47 @@ export async function buildDailyPlan(options: {
 }
 
 export async function buildChatSystemPrompt(profile: FamilyProfile, history: HistoryEntry[]) {
+  const emptyEvents: FamilyEventSummary[] = [];
+  const emptySources: CustomSourceSummary[] = [];
+  return buildContextualChatSystemPrompt({
+    profile,
+    history,
+    savedEvents: emptyEvents,
+    customSources: emptySources,
+    upcomingEvents: emptyEvents,
+  });
+}
+
+function summarizeEvents(events: FamilyEventSummary[]) {
+  if (!events.length) {
+    return "none loaded";
+  }
+
+  return events
+    .slice(0, 6)
+    .map((event) => `${event.title} (${event.dateLabel}; ${event.verificationLabel})`)
+    .join(", ");
+}
+
+function summarizeCustomSources(sources: CustomSourceSummary[]) {
+  if (!sources.length) {
+    return "none saved";
+  }
+
+  return sources
+    .slice(0, 6)
+    .map((source) => `${source.name} (${source.recurrenceLabel})`)
+    .join(", ");
+}
+
+export async function buildContextualChatSystemPrompt(options: {
+  profile: FamilyProfile;
+  history: HistoryEntry[];
+  savedEvents: FamilyEventSummary[];
+  customSources: CustomSourceSummary[];
+  upcomingEvents: FamilyEventSummary[];
+}) {
+  const { profile, history, savedEvents, customSources, upcomingEvents } = options;
   const weather = await getWeather(profile.location);
   const discovery = await discoverPlaces(profile.location, ["parks", "libraries", "playgrounds"]);
 
@@ -490,7 +535,11 @@ export async function buildChatSystemPrompt(profile: FamilyProfile, history: His
     `Materials at home: ${profile.materials.join(", ") || "basic household items"}`,
     `Weather now: ${weather.summary}, ${weather.currentTemperature ?? weather.high}F, high ${weather.high}F, low ${weather.low}F, rain chance ${weather.precipitationChance}%`,
     `Nearby ideas: ${discovery.places.slice(0, 4).map((place) => `${place.name} (${place.category})`).join(", ") || "none loaded"}`,
+    `Saved events: ${summarizeEvents(savedEvents)}`,
+    `Custom programs: ${summarizeCustomSources(customSources)}`,
+    `Upcoming area events: ${summarizeEvents(upcomingEvents)}`,
     `Recent behavior signals: ${summarizeHistory(history)}`,
+    "Be explicit when event data is low-confidence or still needs verification.",
     "If the parent sounds depleted, lower the ambition and protect their nervous system first.",
   ].join("\n");
 }

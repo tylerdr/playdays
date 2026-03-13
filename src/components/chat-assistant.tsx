@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
-import { Bot, LoaderCircle, Send, Sparkles } from "lucide-react";
+import { AlertCircle, Bot, LoaderCircle, Send, Sparkles } from "lucide-react";
 import { createDemoProfile, type FamilyProfile } from "@/lib/schemas";
 import { getHistory, getProfile } from "@/lib/storage";
 import { quickQuestions } from "@/lib/site";
@@ -13,7 +13,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-type ChatMode = "profile" | "example" | "generic";
+type ChatMode = "server" | "profile" | "example" | "generic";
+
+interface ChatServerContext {
+  authMode: "unavailable" | "anonymous" | "authenticated";
+  userEmail: string | null;
+  profile: FamilyProfile | null;
+  warnings: string[];
+  historyCount: number;
+  savedEventCount: number;
+  customSourceCount: number;
+  upcomingEventCount: number;
+  legacySavedItemCount: number;
+}
 
 function formatContext(profile: FamilyProfile) {
   return `${profile.parentName}, ${profile.kids
@@ -23,21 +35,39 @@ function formatContext(profile: FamilyProfile) {
   }`;
 }
 
-export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: boolean }) {
+export function ChatAssistant({
+  liveAssistantEnabled,
+  serverContext,
+}: {
+  liveAssistantEnabled: boolean;
+  serverContext: ChatServerContext;
+}) {
   const [storedProfile] = useState<FamilyProfile | null>(() => getProfile());
   const [exampleProfile] = useState<FamilyProfile>(() => createDemoProfile());
-  const [mode, setMode] = useState<ChatMode>(() => (storedProfile ? "profile" : "generic"));
+  const [mode, setMode] = useState<ChatMode>(() => {
+    if (serverContext.profile) {
+      return "server";
+    }
+
+    return storedProfile ? "profile" : "generic";
+  });
   const [input, setInput] = useState("");
 
   const activeProfile =
-    mode === "profile" ? storedProfile : mode === "example" ? exampleProfile : null;
+    mode === "server"
+      ? serverContext.profile
+      : mode === "profile"
+        ? storedProfile
+        : mode === "example"
+          ? exampleProfile
+          : null;
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
         body: () => ({
-          profile: activeProfile,
+          profile: mode === "server" ? null : activeProfile,
           history: mode === "profile" ? getHistory() : [],
         }),
       }),
@@ -67,6 +97,7 @@ export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: 
   const helperText = liveAssistantEnabled
     ? "One or two lines is enough."
     : "One or two lines is enough. PlayDays will answer in quick backup mode.";
+  const showServerWarning = serverContext.authMode === "authenticated" && serverContext.warnings.length > 0;
 
   return (
     <div className="page-shell py-8 sm:py-10">
@@ -80,7 +111,9 @@ export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: 
             <div className="grid max-h-[34rem] gap-3 overflow-y-auto rounded-[1.5rem] border border-border/60 bg-white/75 p-4">
               {messages.length === 0 ? (
                 <div className="rounded-[1.25rem] border border-dashed border-border/80 bg-background/70 p-4 text-sm leading-7 text-muted-foreground">
-                  {mode === "profile"
+                  {mode === "server"
+                    ? "Ask for a fast pivot, a backup plan, or a weather-aware next move. PlayDays is using your authenticated family context from Supabase when it is available."
+                    : mode === "profile"
                     ? "Ask for a fast pivot, a low-energy backup, or a weather-safe next move. Your saved family setup will shape the answer."
                     : mode === "example"
                       ? "You are chatting with the example family context. It is useful for previewing tone and structure, not for your real household."
@@ -145,7 +178,9 @@ export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: 
           <Card className="card-soft border-border/60">
             <CardHeader>
               <Badge className="w-fit rounded-full bg-primary/10 text-primary">
-                {mode === "profile"
+                {mode === "server"
+                  ? "Authenticated family context"
+                  : mode === "profile"
                   ? "Your family context"
                   : mode === "example"
                     ? "Example family"
@@ -155,9 +190,34 @@ export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: 
             </CardHeader>
             <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
               <p>{introBody}</p>
+              {showServerWarning ? (
+                <div className="rounded-[1.4rem] border border-amber-300/70 bg-amber-50/80 p-4 text-amber-950">
+                  <p className="flex items-center gap-2 font-medium text-amber-950">
+                    <AlertCircle className="size-4" />
+                    Signed in, but PlayDays could not load the full synced context cleanly.
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">
+                    {serverContext.warnings[0]}
+                  </p>
+                </div>
+              ) : null}
+              {mode === "server" && activeProfile ? (
+                <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
+                  <p className="font-medium text-foreground">Using your Supabase family setup</p>
+                  <p className="mt-2">{formatContext(activeProfile)}</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {serverContext.historyCount} recent actions, {serverContext.savedEventCount} saved events,{" "}
+                    {serverContext.customSourceCount} custom sources, {serverContext.upcomingEventCount} upcoming area
+                    events
+                    {serverContext.legacySavedItemCount
+                      ? `, and ${serverContext.legacySavedItemCount} legacy saved items`
+                      : ""}.
+                  </p>
+                </div>
+              ) : null}
               {mode === "profile" && activeProfile ? (
                 <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
-                  <p className="font-medium text-foreground">Using your saved family setup</p>
+                  <p className="font-medium text-foreground">Using this browser-saved family setup</p>
                   <p className="mt-2">{formatContext(activeProfile)}</p>
                 </div>
               ) : null}
@@ -169,28 +229,65 @@ export function ChatAssistant({ liveAssistantEnabled }: { liveAssistantEnabled: 
               ) : null}
               {mode === "generic" ? (
                 <div className="rounded-[1.4rem] border border-border/60 bg-white/75 p-4">
-                  <p className="font-medium text-foreground">No saved family context yet</p>
+                  <p className="font-medium text-foreground">
+                    {serverContext.authMode === "authenticated"
+                      ? "No synced family profile yet"
+                      : "No saved family context yet"}
+                  </p>
                   <p className="mt-2">
-                    You can still ask a general question now, or finish setup for answers that use your kids,
-                    location, schedule, and weather.
+                    {serverContext.authMode === "authenticated"
+                      ? "You can still ask a general question now, or finish setup to sync your kids, location, schedule, and weather into chat."
+                      : "You can still ask a general question now, or finish setup for answers that use your kids, location, schedule, and weather."}
                   </p>
                 </div>
               ) : null}
               {messages.length === 0 && mode === "generic" ? (
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button asChild className="touch-safe rounded-2xl px-5">
-                    <Link href="/start-setup">Finish setup</Link>
+                    <Link href="/start-setup">
+                      {serverContext.authMode === "authenticated" ? "Save synced setup" : "Finish setup"}
+                    </Link>
                   </Button>
+                  {storedProfile ? (
+                    <Button
+                      variant="outline"
+                      className="touch-safe rounded-2xl"
+                      onClick={() => setMode("profile")}
+                    >
+                      Use browser-saved setup
+                    </Button>
+                  ) : null}
                   <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("example")}>
                     <Sparkles className="size-4" />
                     Use example family
                   </Button>
                 </div>
               ) : null}
-              {messages.length === 0 && mode === "example" ? (
-                <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("generic")}>
-                  Back to general chat
+              {messages.length === 0 && mode === "profile" && serverContext.profile ? (
+                <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("server")}>
+                  Switch to synced setup
                 </Button>
+              ) : null}
+              {messages.length === 0 && mode === "example" ? (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  {serverContext.profile ? (
+                    <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("server")}>
+                      Use synced setup
+                    </Button>
+                  ) : storedProfile ? (
+                    <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("profile")}>
+                      Use browser-saved setup
+                    </Button>
+                  ) : null}
+                  <Button variant="outline" className="touch-safe rounded-2xl" onClick={() => setMode("generic")}>
+                    Back to general chat
+                  </Button>
+                </div>
+              ) : null}
+              {serverContext.userEmail && mode === "server" ? (
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Signed in as {serverContext.userEmail}
+                </p>
               ) : null}
             </CardContent>
           </Card>
