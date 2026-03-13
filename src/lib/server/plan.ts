@@ -364,7 +364,7 @@ function fallbackNapTrap() {
 }
 
 async function generateActivitiesWithAi(profile: FamilyProfile, history: HistoryEntry[], discovery: LocalPlace[], weatherText: string) {
-  const { object } = await generateObject({ mode: "json",
+  const { object } = await generateObject({
     model: getOpenAIModel(),
     schema: z.object({
       headline: z.string(),
@@ -399,7 +399,7 @@ async function generateReplacementWithAi(
   weatherText: string,
   excludedTitles: string[],
 ) {
-  const { object } = await generateObject({ mode: "json",
+  const { object } = await generateObject({
     model: getOpenAIModel(),
     schema: z.object({
       activity: activityCardSchema.partial(),
