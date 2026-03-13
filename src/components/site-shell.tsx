@@ -6,6 +6,7 @@ import { Menu, Sparkles } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { usePathname, useRouter } from "next/navigation";
 import { appNav, marketingNav } from "@/lib/site";
+import { getProfile } from "@/lib/storage";
 import { createClientSupabaseClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,12 +44,23 @@ function NavButton({ href, label, active }: { href: string; label: string; activ
 function AuthButtons({ compact }: { compact?: boolean }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [hasLocalProfile, setHasLocalProfile] = useState(() => Boolean(getProfile()));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    function syncLocalProfile() {
+      setHasLocalProfile(Boolean(getProfile()));
+    }
+
+    window.addEventListener("focus", syncLocalProfile);
+    document.addEventListener("visibilitychange", syncLocalProfile);
+
     const supabase = createClientSupabaseClient();
     if (!supabase) {
-      return;
+      return () => {
+        window.removeEventListener("focus", syncLocalProfile);
+        document.removeEventListener("visibilitychange", syncLocalProfile);
+      };
     }
 
     void supabase.auth.getUser().then(({ data }) => {
@@ -62,6 +74,8 @@ function AuthButtons({ compact }: { compact?: boolean }) {
     });
 
     return () => {
+      window.removeEventListener("focus", syncLocalProfile);
+      document.removeEventListener("visibilitychange", syncLocalProfile);
       subscription.unsubscribe();
     };
   }, []);
@@ -84,6 +98,14 @@ function AuthButtons({ compact }: { compact?: boolean }) {
   }
 
   if (!user) {
+    if (hasLocalProfile) {
+      return (
+        <Button asChild variant="outline" className="touch-safe rounded-full px-5">
+          <Link href="/profile">Profile</Link>
+        </Button>
+      );
+    }
+
     return (
       <Button asChild className="touch-safe rounded-full px-5">
         <Link href="/auth/login">Sign in</Link>
@@ -122,7 +144,7 @@ export function SiteShell({
   const navItems = isAppShell ? appNav : marketingNav;
 
   return (
-    <div className="min-h-screen pb-24 sm:pb-10">
+    <div className="flex min-h-screen flex-col pb-24 sm:pb-10">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="page-shell flex items-center justify-between gap-4 py-3">
           <Link href="/" className="flex items-center gap-3">
@@ -204,7 +226,7 @@ export function SiteShell({
         </div>
       </header>
 
-      <main>{children}</main>
+      <main className="flex-1">{children}</main>
 
       <footer className="page-shell border-t border-border/60 py-8 text-sm text-muted-foreground">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

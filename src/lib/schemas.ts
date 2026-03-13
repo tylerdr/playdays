@@ -25,10 +25,13 @@ export const scheduleSchema = z.object({
   napWindow: z.string().default(""),
   freeTimeWindows: z.string().default(""),
   wakeTime: z.string().default("07:00"),
+  breakfastTime: z.string().default("07:30"),
   nap1Start: z.string().default("12:30"),
   nap1End: z.string().default("14:30"),
+  lunchTime: z.string().default("12:00"),
   nap2Start: z.string().default(""),
   nap2End: z.string().default(""),
+  dinnerTime: z.string().default("17:30"),
   bedtime: z.string().default("19:30"),
 });
 
@@ -318,6 +321,29 @@ export const EVENT_TAG_OPTIONS = [
   "free",
 ] as const;
 
+export const INTEREST_SUGGESTIONS = [
+  "dinosaurs",
+  "trucks",
+  "painting",
+  "music",
+  "animals",
+  "books",
+  "water play",
+  "sports",
+  "dancing",
+  "cooking",
+  "building",
+  "dolls",
+  "cars",
+  "nature",
+  "trains",
+  "puzzles",
+  "dress-up",
+  "science",
+  "superheroes",
+  "crafts",
+] as const;
+
 export const SLOT_ORDER: ActivitySlot[] = ["outdoor", "indoor", "adventure", "calm", "together"];
 
 export function createEmptyProfile(): FamilyProfile {
@@ -342,10 +368,13 @@ export function createEmptyProfile(): FamilyProfile {
       napWindow: "12:30-2:30pm",
       freeTimeWindows: "9-11am, 3-5pm",
       wakeTime: "07:00",
+      breakfastTime: "07:30",
       nap1Start: "12:30",
       nap1End: "14:30",
+      lunchTime: "12:00",
       nap2Start: "",
       nap2End: "",
+      dinnerTime: "17:30",
       bedtime: "19:30",
     },
     preferences: {
@@ -387,10 +416,13 @@ export function createDemoProfile(): FamilyProfile {
       napWindow: "1-3pm",
       freeTimeWindows: "9-11am, 3:30-5pm",
       wakeTime: "07:00",
+      breakfastTime: "07:30",
       nap1Start: "13:00",
       nap1End: "15:00",
+      lunchTime: "12:00",
       nap2Start: "",
       nap2End: "",
+      dinnerTime: "17:30",
       bedtime: "19:30",
     },
     preferences: {

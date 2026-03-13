@@ -6,6 +6,14 @@ User testing surfaced 9 issues with the onboarding flow (`/start-setup`). The cu
 
 This plan covers all 9 issues plus the Typeform redesign, organized as individual implementation sections with root causes and fix approaches.
 
+## Implementation note
+
+- `framer-motion` is not installed in this repo as of 2026-03-13, so the conversational slide transition should use the CSS animation fallback described in Bug 7.
+
+## Status
+
+- 2026-03-13: Implemented the onboarding UX overhaul in code and verified it with `npm run lint`, `npm run typecheck`, and `npm run build`.
+
 ---
 
 ## Files to change

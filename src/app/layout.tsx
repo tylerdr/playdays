@@ -50,7 +50,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${nunito.variable}`}>{children}</body>
+      <body className={`${outfit.variable} ${nunito.variable} flex min-h-screen flex-col`}>{children}</body>
     </html>
   );
 }
