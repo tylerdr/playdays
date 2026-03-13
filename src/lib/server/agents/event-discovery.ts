@@ -7,7 +7,7 @@ import { getOpenAIModel, hasOpenAIKey } from "@/lib/server/ai";
 const generatedEventSchema = z.object({
   title: z.string(),
   description: z.string().default(""),
-  url: z.string().url().optional().or(z.literal("")),
+  url: z.string().optional().or(z.literal("")),
   locationName: z.string().default(""),
   locationAddress: z.string().default(""),
   city: z.string().default(""),

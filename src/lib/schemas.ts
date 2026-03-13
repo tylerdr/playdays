@@ -99,7 +99,7 @@ export const localPlaceSchema = z.object({
   kidFriendly: z.boolean().default(true),
   todayEvent: z.string().optional().nullable(),
   reasons: z.array(z.string()).default([]),
-  mapsUrl: z.string().url().optional().or(z.literal("")),
+  mapsUrl: z.string().optional().or(z.literal("")),
 });
 export type LocalPlace = z.infer<typeof localPlaceSchema>;
 
@@ -119,8 +119,8 @@ export const eventSchema = z.object({
   id: z.string(),
   title: z.string().min(1),
   description: z.string().optional().default(""),
-  url: z.string().url().optional().or(z.literal("")).default(""),
-  imageUrl: z.string().url().optional().or(z.literal("")).default(""),
+  url: z.string().optional().or(z.literal("")).default(""),
+  imageUrl: z.string().optional().or(z.literal("")).default(""),
   locationName: z.string().optional().default(""),
   locationAddress: z.string().optional().default(""),
   city: z.string().min(1),
