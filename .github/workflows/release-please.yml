@@ -1,9 +1,10 @@
-# Release Please — disabled pending per-repo configuration  
+# Release Please — disabled pending per-repo configuration
+# Activate by changing "workflow_dispatch" to "push: branches: [main]"
 name: Release Please
 on:
-  workflow_dispatch:  # manual trigger only
+  workflow_dispatch:
 jobs:
   placeholder:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Release Please not yet configured for this repo"
+      - run: echo "Enable by editing this workflow trigger"

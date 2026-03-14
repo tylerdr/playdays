@@ -1,10 +1,25 @@
-# CI — disabled pending per-repo configuration
-# See shared-context/REPO-AGENT-STANDARDS.md for setup instructions
 name: CI
+
 on:
-  workflow_dispatch:  # manual trigger only
+  pull_request:
+    branches: [main]
+
 jobs:
-  placeholder:
+  agent-docs:
+    name: Check Agent Docs
     runs-on: ubuntu-latest
     steps:
-      - run: echo "CI not yet configured for this repo"
+      - uses: actions/checkout@v4
+
+      - name: Verify required agent docs exist
+        run: |
+          missing=0
+          for f in documents/SPEC.md documents/BACKLOG.md documents/HANDOFF.md; do
+            if [ ! -f "$f" ]; then
+              echo "Missing: $f"
+              missing=1
+            else
+              echo "OK: $f"
+            fi
+          done
+          exit $missing
