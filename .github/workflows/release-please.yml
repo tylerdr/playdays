@@ -1,18 +1,9 @@
+# Release Please — disabled pending per-repo configuration  
 name: Release Please
-
 on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: write
-  pull-requests: write
-
+  workflow_dispatch:  # manual trigger only
 jobs:
-  release-please:
+  placeholder:
     runs-on: ubuntu-latest
     steps:
-      - uses: google-github-actions/release-please-action@v4
-        with:
-          release-type: node
+      - run: echo "Release Please not yet configured for this repo"

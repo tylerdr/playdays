@@ -1,39 +1,10 @@
+# CI — disabled pending per-repo configuration
+# See shared-context/REPO-AGENT-STANDARDS.md for setup instructions
 name: CI
-
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-
+  workflow_dispatch:  # manual trigger only
 jobs:
-  quality:
-    name: Lint + Typecheck + Build
+  placeholder:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Check required agent docs
-        run: |
-          test -f CLAUDE.md || test -f .claude/CLAUDE.md || (echo "CLAUDE.md missing" && exit 1)
-          test -f documents/SPEC.md || (echo "documents/SPEC.md missing" && exit 1)
-          test -f documents/BACKLOG.md || (echo "documents/BACKLOG.md missing" && exit 1)
-          echo "Agent docs OK"
-
-      - run: npm run lint
-        if: hashFiles('.eslintrc*', 'eslint.config*') != ''
-
-      - run: npm run typecheck
-        if: hashFiles('tsconfig.json') != ''
-
-      - run: npm run build
-
-      - run: npm test
-        if: hashFiles('**/*.test.ts', '**/*.spec.ts') != ''
+      - run: echo "CI not yet configured for this repo"
